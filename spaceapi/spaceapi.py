@@ -15,7 +15,75 @@ ARGS = None  # command line args
 
 @get('/')
 def spaceapi():
-    return {}
+    URL = 'https://fablab.fau.de/'
+    ADDRESS = 'Raum U1.239\nErwin-Rommel-Straße 60\n91058 Erlangen\nGermany'
+    LAT = 49.574
+    LON = 11.03
+    OPEN_URL = 'https://fablab.fau.de/spaceapi/logo_open.png'
+    CLOSED_URL = 'https://fablab.fau.de/spaceapi/logo_closed.png'
+    PHONE = '+49 9131 85 28013'
+    open = False  # TODO
+    state_last_change = 1497711681  # TODO
+    state_message = 'you can call us, maybe someone is here'
+
+    # TODO add compatibility with older space api versions
+
+    return {
+        'api': '0.13',
+        'space': 'FAU FabLab',
+        'logo': URL + 'spaceapi/logo_transparentbg.png',
+        'url': URL,
+        'address': ADDRESS,
+        'lat': LAT,
+        'lon': LON,
+        'open': open,
+        'status': state_message,
+        'lastchange': state_last_change,
+        'phone': PHONE,
+        'location': {
+            'address': ADDRESS,
+            'lat': LAT,
+            'lon': LON,
+        },
+        'spacefed': {
+            'spacenet': False,
+            'spacesaml': False,
+            'spacephone': False,
+        },
+        'state': {
+            'lastchange': state_last_change,
+            'open': open,
+            'message': state_message,
+            'icon': {
+                'open': OPEN_URL,
+                'closed': CLOSED_URL,
+            },
+        },
+        'cache': {
+            'schedule': "m.05",
+        },
+        'projects': {
+            '0': URL + 'project/',
+            '1': "https://github.com/fau-fablab/",
+        },
+        'issue_report_channels': {
+            '0': "twitter",
+            '1': "ml",
+        },
+        'contact': {
+            'phone': PHONE,
+            'twitter': "@FAUFabLab",
+            'ml': "fablab-aktive@fablab.fau.de",
+            'facebook': "FAUFabLab",
+            'google': {
+                'plus': "+FAUFabLabErlangen",
+            },
+        },
+        'icon': {
+            'open': OPEN_URL,
+            'closed': CLOSED_URL,
+        }
+    }
 
 
 @post('/update_doorstate/')
@@ -50,6 +118,7 @@ def update_doorstate():
 
     # update doorstate
     # TODO
+    print(state, time)
 
     return {'state': state, 'time': time}
 

@@ -15,14 +15,14 @@ ARGS = None  # command line args
 def update_doorstate(args):
     """Update doorstate (open, close, ...)."""
     resp = requests.post(args.url, data={
-        'time': args.time,
+        'time': int(args.time),
         'state': args.state,
         'hmac': calculate_hmac(args.time, args.state, args.key)
     })
     resp.raise_for_status()
     resp_json = resp.json()
     if resp_json['time'] == args.time and resp_json['state'] == args.state:
-        print('OK')
+        print('OK', args.time, args.state)
     else:
         print('The API missunderstood our request.')
 
