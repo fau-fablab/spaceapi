@@ -3,9 +3,13 @@
 """Small script to serve the SpaceAPI JSON API."""
 
 import hmac
+import json
+import os
 from datetime import datetime
 
-from bottle import get, post, request, response, run
+from bottle import (
+    HTTP_CODES, error, get, post, request, response, run, static_file
+)
 
 from lib_doorstate import calculate_hmac, parse_args
 
@@ -19,8 +23,8 @@ def spaceapi():
     ADDRESS = 'Raum U1.239\nErwin-Rommel-Straße 60\n91058 Erlangen\nGermany'
     LAT = 49.574
     LON = 11.03
-    OPEN_URL = 'https://fablab.fau.de/spaceapi/logo_open.png'
-    CLOSED_URL = 'https://fablab.fau.de/spaceapi/logo_closed.png'
+    OPEN_URL = 'https://fablab.fau.de/spaceapi/static/logo_open.png'
+    CLOSED_URL = 'https://fablab.fau.de/spaceapi/static/logo_closed.png'
     PHONE = '+49 9131 85 28013'
     open = False  # TODO
     state_last_change = 1497711681  # TODO
@@ -31,7 +35,7 @@ def spaceapi():
     return {
         'api': '0.13',
         'space': 'FAU FabLab',
-        'logo': URL + 'spaceapi/logo_transparentbg.png',
+        'logo': URL + 'spaceapi/static/logo_transparentbg.png',
         'url': URL,
         'address': ADDRESS,
         'lat': LAT,
@@ -121,6 +125,25 @@ def update_doorstate():
     print(state, time)
 
     return {'state': state, 'time': time}
+
+
+@get('/static/<filename>')
+def server_static(filename):
+    return static_file(filename, root=os.path.join(
+        os.path.dirname(os.path.realpath(__file__)),
+        '../static/',
+    ))
+
+
+@error(404)
+@error(405)
+@error(500)
+def error404(error):
+    response.content_type = 'application/json'
+    return json.dumps({
+        'error_code': error.status_code,
+        'error_message': HTTP_CODES[error.status_code],
+    })
 
 
 
