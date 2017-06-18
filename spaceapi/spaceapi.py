@@ -19,6 +19,11 @@ ARGS = None  # command line args
 
 @get('/')
 def spaceapi():
+    """
+    Return the SpaceAPI JSON (spaceapi.net).
+
+    This one is valid for version 0.8, 0.9, 0.11-0.13.
+    """
     URL = 'https://fablab.fau.de/'
     ADDRESS = 'Raum U1.239\nErwin-Rommel-Straße 60\n91058 Erlangen\nGermany'
     LAT = 49.574
@@ -29,8 +34,6 @@ def spaceapi():
     open = False  # TODO
     state_last_change = 1497711681  # TODO
     state_message = 'you can call us, maybe someone is here'
-
-    # TODO add compatibility with older space api versions
 
     return {
         'api': '0.13',
@@ -66,14 +69,14 @@ def spaceapi():
         'cache': {
             'schedule': "m.05",
         },
-        'projects': {
-            '0': URL + 'project/',
-            '1': "https://github.com/fau-fablab/",
-        },
-        'issue_report_channels': {
-            '0': "twitter",
-            '1': "ml",
-        },
+        'projects': [
+            URL + 'project/',
+            "https://github.com/fau-fablab/",
+        ],
+        'issue_report_channels': [
+            "twitter",
+            "ml",
+        ],
         'contact': {
             'phone': PHONE,
             'twitter': "@FAUFabLab",
