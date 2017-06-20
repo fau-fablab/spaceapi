@@ -2,14 +2,17 @@
 # -*- coding: utf-8 -*-
 """Small script to serve the SpaceAPI JSON API."""
 
+import argparse
 import hmac
 from datetime import date, datetime, timedelta
 
 from flask import Flask, abort, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 
-from lib_doorstate import (DoorState, calculate_hmac, human_time_since,
-                           parse_args, utc_to_local)
+from lib_doorstate import (DoorState, add_debug_arg, add_host_arg, add_key_arg,
+                           add_port_arg, add_sql_arg, calculate_hmac,
+                           human_time_since, parse_args_and_read_key,
+                           utc_to_local)
 
 WEBSITE_URL = 'https://fablab.fau.de/'
 ADDRESS = 'Raum U1.239\nErwin-Rommel-Straße 60\n91058 Erlangen\nGermany'
@@ -19,26 +22,21 @@ OPEN_URL = 'https://fablab.fau.de/spaceapi/static/logo_open.png'
 CLOSED_URL = 'https://fablab.fau.de/spaceapi/static/logo_closed.png'
 PHONE = '+49 9131 85 28013'
 
-ARGS = parse_args(
-    {
-        'argument': '--host',
-        'type': str,
-        'default': '0.0.0.0',
-        'help': 'Host to listen on (default 0.0.0.0)',
-    },
-    {
-        'argument': '--port',
-        'type': int,
-        'default': 8888,
-        'help': 'Port to listen on (default 8888)',
-    },
-    {
-        'argument': '--sql',
-        'type': str,
-        'default': 'sqlite:///:memory:',
-        'help': 'SQL connection string',
-    },
-)
+
+def parse_args():
+    """Return parsed command line arguments."""
+    parser = argparse.ArgumentParser(__doc__)
+
+    add_debug_arg(parser)
+    add_key_arg(parser)
+    add_host_arg(parser)
+    add_port_arg(parser)
+    add_sql_arg(parser)
+
+    return parse_args_and_read_key(parser)
+
+
+ARGS = parse_args()
 APP = Flask(__name__)
 APP.config['SQLALCHEMY_DATABASE_URI'] = ARGS.sql
 APP.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -205,6 +203,8 @@ def update_doorstate():
         latest_door_state = DoorStateEntry.get_latest_state()
         if latest_door_state and latest_door_state.state == state:
             raise ValueError('state', 'Door is already {}'.format(state.name))
+        elif latest_door_state.timestamp >= time.timestamp():
+            raise ValueError('time', 'New entry must be newer than latest entry.')
     except ValueError as err:
         abort(400, {err.args[0]: err.args[1]})
 
@@ -240,7 +240,7 @@ def get_all_doorstate():
         DB.asc(DoorStateEntry.time)
     ).filter(
         DoorStateEntry.time >= time_from, DoorStateEntry.time <= time_to,
-    ).limit(1000)
+    ).limit(2000)
     return jsonify([entry.to_dict() for entry in all_entries])
 
 

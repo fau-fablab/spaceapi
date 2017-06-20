@@ -6,6 +6,7 @@ import hmac
 from datetime import datetime
 from enum import Enum
 
+import requests
 from dateutil import tz
 
 
@@ -16,31 +17,115 @@ class DoorState(Enum):
     closed = 'closed'
 
 
-def parse_args(*extra_args):
-    """Return parsed command line args."""
-    parser = argparse.ArgumentParser(description=__doc__)
-
+def add_key_arg(parser):
+    """Add the --key argument to an argparser."""
     parser.add_argument(
         '--key',
         type=argparse.FileType(mode='rb'),
         required=True,
         help='Path to HMAC key file',
     )
+
+
+def add_debug_arg(parser):
+    """Add the --debug argument to an argparser."""
     parser.add_argument(
         '--debug',
         action='store_true',
         default=False,
         help='Enable debug output',
     )
-    for arg_spec in extra_args:
-        argument = arg_spec.pop('argument')
-        parser.add_argument(argument, **arg_spec)
 
-    # read key
+
+def add_url_arg(parser, default):
+    """Add the --url argument to an argparser."""
+    parser.add_argument(
+        '--url',
+        type=str,
+        default=default,
+        help='URL to API endpoint',
+    )
+
+
+def add_time_arg(parser):
+    """Add the --time argument to an argparser."""
+    parser.add_argument(
+        '--time',
+        type=int,
+        default=int(datetime.utcnow().timestamp()),
+        help='UTC timestamp since state changed (default now)',
+    )
+
+
+def add_outfile_arg(parser):
+    """Add the --out argument to an argparser."""
+    parser.add_argument(
+        '--out',
+        type=argparse.FileType(mode='wb'),
+        required=True,
+        help='The file to write the image',
+    )
+
+
+def add_plot_type_arg(parser):
+    """Add the --plot-type argument to an argparser."""
+    parser.add_argument(
+        '--plot-type',
+        type=str,
+        choices={'by-week', 'by-hour'},
+        required=True,
+        help='The type of the graph to plot',
+    )
+
+
+def add_state_arg(parser):
+    """Add the --state argument to an parser."""
+    parser.add_argument(
+        '--state',
+        type=str,
+        choices=DoorState.__members__.keys(),
+        required=True,
+        help='New state',
+    )
+
+
+def add_host_arg(parser):
+    """Add the --host argument to an parser."""
+    parser.add_argument(
+        '--host',
+        type=str,
+        default='0.0.0.0',
+        help='Host to listen on (default 0.0.0.0)',
+    )
+
+
+def add_port_arg(parser):
+    """Add the --port argument to an parser."""
+    parser.add_argument(
+        '--port',
+        type=int,
+        default=8888,
+        help='Port to listen on (default 8888)',
+    )
+
+
+def add_sql_arg(parser):
+    """Add the --sql argument to an parser."""
+    parser.add_argument(
+        '--sql',
+        type=str,
+        default='sqlite:///:memory:',
+        help='SQL connection string',
+    )
+
+
+def parse_args_and_read_key(parser):
+    """Run ArgumentParser.parse_args and read the --key file."""
     args = parser.parse_args()
-    args.key = args.key.read().strip()
-    if not args.key:
-        raise ValueError('The key file is empty')
+    if hasattr(args, 'key'):
+        args.key = args.key.read().strip()
+        if not args.key:
+            raise ValueError('The key file is empty')
 
     return args
 
@@ -88,3 +173,20 @@ def utc_to_local(time):
         raise ValueError('Time is neither naive nor utc but {}.'.format(time.tzname()))
 
     return time.replace(tzinfo=tz.tzutc()).astimezone(tz.tzlocal())
+
+
+def json_response_error_handling(response):
+    """Return the response json of a request after error handling."""
+    try:
+        response.raise_for_status()
+    except requests.HTTPError as err:
+        print('Error', err.response.status_code)
+        try:
+            response_json = response.json()
+            print(response_json)
+        except Exception:
+            print(err)
+
+        exit(1)
+
+    return response.json()
