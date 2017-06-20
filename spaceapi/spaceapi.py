@@ -203,10 +203,11 @@ def update_doorstate():
             )
         state = DoorState[data['state']]
         latest_door_state = DoorStateEntry.get_latest_state()
-        if latest_door_state and latest_door_state.state == state:
-            raise ValueError('state', 'Door is already {}'.format(state.name))
-        elif latest_door_state.timestamp >= time.timestamp():
-            raise ValueError('time', 'New entry must be newer than latest entry.')
+        if latest_door_state:
+            if latest_door_state.state == state:
+                raise ValueError('state', 'Door is already {}'.format(state.name))
+            elif latest_door_state.timestamp >= time.timestamp():
+                raise ValueError('time', 'New entry must be newer than latest entry.')
     except ValueError as err:
         abort(400, {err.args[0]: err.args[1]})
 
@@ -215,7 +216,6 @@ def update_doorstate():
     APP.logger.debug('Updating door state: %(time)i: %(state)s', new_entry.to_dict())
     DB.session.add(new_entry)
     DB.session.commit()
-
     return jsonify(new_entry.to_dict())
 
 
@@ -242,7 +242,7 @@ def get_all_doorstate():
         DB.asc(DoorStateEntry.time)
     ).filter(
         DoorStateEntry.time >= time_from, DoorStateEntry.time <= time_to,
-    ).limit(2000)
+    ).limit(2000).all()
     return jsonify([entry.to_dict() for entry in all_entries])
 
 
