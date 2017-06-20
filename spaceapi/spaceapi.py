@@ -5,9 +5,11 @@
 import argparse
 import hmac
 from datetime import date, datetime, timedelta
+from time import sleep
 
 from flask import Flask, abort, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.exc import OperationalError
 
 from lib_doorstate import (DoorState, add_debug_arg, add_host_arg, add_key_arg,
                            add_port_arg, add_sql_arg, calculate_hmac,
@@ -258,5 +260,17 @@ def errorhandler(error):
 
 
 if __name__ == '__main__':
-    DB.create_all()
+    # try 10 times to connect to database then fail
+    DB_CONNECTION_RETRIES = 20
+    for retry in range(1, DB_CONNECTION_RETRIES + 1):
+        try:
+            DB.create_all()
+            break
+        except OperationalError as err:
+            APP.logger.error(
+                'Failed to connect to database: Try %i of %i', retry, DB_CONNECTION_RETRIES
+            )
+            if retry == DB_CONNECTION_RETRIES:
+                raise err
+            sleep(1)
     APP.run(host=ARGS.host, port=ARGS.port, debug=ARGS.debug)
