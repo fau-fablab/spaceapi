@@ -2,7 +2,14 @@
 """Common things for doorstate client and server."""
 
 import argparse
+from enum import Enum
 import hmac
+
+
+class DoorState(Enum):
+    """Valid door state values."""
+    open = 'open'
+    closed = 'closed'
 
 
 def parse_args(*extra_args):
@@ -36,6 +43,6 @@ def parse_args(*extra_args):
 
 def calculate_hmac(time, state, key):
     """Return the hexdigest of the hmac of 'time:state' with key."""
-    our_hmac = hmac.new(key)
+    our_hmac = hmac.new(key, digestmod='md5')
     our_hmac.update('{}:{}'.format(time, state).encode('utf8'))
     return our_hmac.hexdigest()

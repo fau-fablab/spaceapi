@@ -6,9 +6,8 @@ from datetime import datetime
 
 import requests
 
-from lib_doorstate import calculate_hmac, parse_args
+from lib_doorstate import calculate_hmac, parse_args, DoorState
 
-VALID_DOOR_STATES = {'open', 'close'}
 ARGS = None  # command line args
 
 
@@ -24,7 +23,11 @@ def update_doorstate(args):
     if resp_json['time'] == args.time and resp_json['state'] == args.state:
         print('OK', args.time, args.state)
     else:
-        print('The API missunderstood our request.')
+        print(
+            'The API missunderstood our request. Sent:',
+            args.time, args.state,
+            'API response: ', resp_json['time'], resp_json['state']
+        )
 
 
 
@@ -45,7 +48,7 @@ if __name__ == '__main__':
         {
             'argument': '--state',
             'type': str,
-            'choices': VALID_DOOR_STATES,
+            'choices': DoorState.__members__.keys(),
             'required': True,
             'help': 'New state',
         },
