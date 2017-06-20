@@ -3,12 +3,10 @@
 """Small script to serve the SpaceAPI JSON API."""
 
 import hmac
-import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, abort
 from flask_sqlalchemy import SQLAlchemy
-from flask_restless import APIManager
 
 from lib_doorstate import (DoorState, calculate_hmac, human_time_since,
                            parse_args)
@@ -66,8 +64,7 @@ class DoorStateEntry(DB.Model):
         """Return the integer timestamp of this entry."""
         return int(self.time.timestamp())
 
-    @property
-    def json(self):
+    def to_dict(self):
         """Return a json serializable dict for this entry."""
         return {
             'state': self.state.name,
@@ -208,17 +205,45 @@ def update_doorstate():
         if latest_door_state and latest_door_state.state == state:
             raise ValueError('state', 'Door is already {}'.format(state))
     except ValueError as err:
-        return jsonify({err.args[0]: err.args[1]}), 400
+        abort(400, {err.args[0]: err.args[1]})
 
     # update doorstate
     new_entry = DoorStateEntry(time=time, state=state)
-    APP.logger.debug('Updating door state: %(time)i: %(state)s', new_entry.json)
+    APP.logger.debug('Updating door state: %(time)i: %(state)s', new_entry.to_dict())
     DB.session.add(new_entry)
     DB.session.commit()
 
-    return jsonify(new_entry.json)
+    return jsonify(new_entry.to_dict())
 
 
+@APP.route('/door/all/', methods=('GET', ))
+def get_all_doorstate():
+    """Return the current door state."""
+    try:
+        time_from = datetime.fromtimestamp(int(
+            request.args.get(
+                'from',
+                (datetime.now() - timedelta(days=365)).timestamp(),
+            )
+        ))
+        time_to = datetime.fromtimestamp(int(
+            request.args.get(
+                'to',
+                datetime.now().timestamp(),
+            )
+        ))
+    except ValueError:
+        abort(400, 'From and to have to be timestamps')
+
+    all_entries = DoorStateEntry.query.order_by(
+        DB.asc(DoorStateEntry.time)
+    ).filter(
+        DoorStateEntry.time >= time_from, DoorStateEntry.time <= time_to,
+    )
+    return jsonify([entry.to_dict() for entry in all_entries])
+
+
+@APP.errorhandler(400)
 @APP.errorhandler(404)
 @APP.errorhandler(405)
 @APP.errorhandler(500)
