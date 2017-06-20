@@ -49,7 +49,7 @@ if __name__ == '__main__':
         {
             'argument': '--url',
             'type': str,
-            'default': 'https://fablab.fau.de/spaceapi/update_doorstate/',
+            'default': 'https://fablab.fau.de/spaceapi/door/',
             'help': 'URL to API endpoint',
         },
         {

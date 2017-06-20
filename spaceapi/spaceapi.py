@@ -10,7 +10,8 @@ from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_restless import APIManager
 
-from lib_doorstate import DoorState, calculate_hmac, parse_args
+from lib_doorstate import (DoorState, calculate_hmac, human_time_since,
+                           parse_args)
 
 WEBSITE_URL = 'https://fablab.fau.de/'
 ADDRESS = 'Raum U1.239\nErwin-Rommel-Straße 60\n91058 Erlangen\nGermany'
@@ -146,6 +147,30 @@ def spaceapi():
             'open': OPEN_URL,
             'closed': CLOSED_URL,
         }
+    })
+
+
+@APP.route('/door/', methods=('GET', ))
+def get_doorstate():
+    """Return the current door state."""
+    latest_door_state = DoorStateEntry.get_latest_state()
+    if not latest_door_state:
+        text = 'Keine aktuellen Informationen über den Türstatus vorhanden.'
+    elif latest_door_state.state == DoorState.closed and \
+            latest_door_state.time.day != datetime.today().day:
+        text = 'Das FabLab war heute noch nicht geöffnet.'
+    elif latest_door_state.state == DoorState.closed:
+        text = 'Das FabLab war zuletzt vor {} geöffnet.'.format(
+            human_time_since(latest_door_state.time)
+        )
+    elif latest_door_state.state == DoorState.open:
+        text = 'Die FabLab-Tür ist seit {} offen.'.format(
+            human_time_since(latest_door_state.time)
+        )
+    return jsonify({
+        'state': latest_door_state.state.name if latest_door_state else 'unknown',
+        'time': latest_door_state.timestamp if latest_door_state else 0,
+        'text': text,
     })
 
 
