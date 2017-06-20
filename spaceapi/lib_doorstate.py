@@ -62,16 +62,16 @@ def human_time_since(time_from, time_to=None):
     elif diff.total_seconds() < 60 * 2:
         return "einer Minute"
     elif diff.total_seconds() < 60 * 60:
-        return "{} Minuten".format(diff.total_seconds() // 60)
+        return "{} Minuten".format(int(diff.total_seconds() // 60))
     elif diff.total_seconds() < 60 * 60 * 2:
         return "einer Stunde"
     elif diff.total_seconds() < 60 * 60 * 24:
-        return "{} Stunden".format(diff.total_seconds() // (60 * 60))
+        return "{} Stunden".format(int(diff.total_seconds() // (60 * 60)))
     elif diff.total_seconds() < 60 * 60 * 24 * 2:
         return "einem Tag"
     elif diff.total_seconds() < 60 * 60 * 24 * 7:
-        return "{} Tagen".format(diff.total_seconds() // (60 * 60 * 24))
+        return "{} Tagen".format(int(diff.total_seconds() // (60 * 60 * 24)))
     elif diff.total_seconds() < 60 * 60 * 24 * 7 * 2:
         return "einer Woche"
     else:
-        return "{} Wochen".format(diff.total_seconds() // (60 * 60 * 24 * 7))
+        return "{} Wochen".format(int(diff.total_seconds() // (60 * 60 * 24 * 7)))

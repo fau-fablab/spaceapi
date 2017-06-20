@@ -49,7 +49,7 @@ class DoorStateEntry(DB.Model):
     """A door state changed entry in the database."""
 
     __tablename__ = 'doorstate'
-    time = DB.Column(DB.DateTime(), primary_key=True)
+    time = DB.Column(DB.DateTime(), primary_key=True, index=True)
     state = DB.Column(DB.Enum(DoorState), nullable=False)
 
     def __init__(self, time, state):
@@ -203,7 +203,7 @@ def update_doorstate():
         state = DoorState[data['state']]
         latest_door_state = DoorStateEntry.get_latest_state()
         if latest_door_state and latest_door_state.state == state:
-            raise ValueError('state', 'Door is already {}'.format(state))
+            raise ValueError('state', 'Door is already {}'.format(state.name))
     except ValueError as err:
         abort(400, {err.args[0]: err.args[1]})
 
@@ -239,7 +239,7 @@ def get_all_doorstate():
         DB.asc(DoorStateEntry.time)
     ).filter(
         DoorStateEntry.time >= time_from, DoorStateEntry.time <= time_to,
-    )
+    ).limit(1000)
     return jsonify([entry.to_dict() for entry in all_entries])
 
 
