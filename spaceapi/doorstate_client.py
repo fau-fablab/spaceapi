@@ -13,11 +13,14 @@ ARGS = None  # command line args
 
 def update_doorstate(args):
     """Update doorstate (open, close, ...)."""
-    resp = requests.post(args.url, data={
-        'time': int(args.time),
-        'state': args.state,
-        'hmac': calculate_hmac(args.time, args.state, args.key)
-    })
+    resp = requests.post(
+        args.url,
+        data={
+            'time': int(args.time),
+            'state': args.state,
+            'hmac': calculate_hmac(args.time, args.state, args.key)
+        }
+    )
     try:
         resp.raise_for_status()
     except requests.HTTPError as err:
@@ -31,7 +34,7 @@ def update_doorstate(args):
         exit(1)
 
     resp_json = resp.json()
-    if not 'time' in resp_json or not 'state' in resp_json:
+    if 'time' not in resp_json or 'state' not in resp_json:
         print("Invalid response from API:", resp_json)
     elif resp_json['time'] == args.time and resp_json['state'] == args.state:
         print('OK', args.time, args.state)
@@ -41,7 +44,6 @@ def update_doorstate(args):
             args.time, args.state,
             'API response: ', resp_json['time'], resp_json['state']
         )
-
 
 
 if __name__ == '__main__':

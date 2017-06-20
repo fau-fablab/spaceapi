@@ -85,7 +85,7 @@ def spaceapi():
     This one is valid for version 0.8, 0.9, 0.11-0.13.
     """
     latest_door_state = DoorStateEntry.get_latest_state()
-    open = latest_door_state is not None and latest_door_state.state == DoorState.open
+    is_open = latest_door_state is not None and latest_door_state.state == DoorState.open
     state_last_change = latest_door_state.timestamp if latest_door_state else 0
     state_message = 'you can call us, maybe someone is here'
 
@@ -97,7 +97,7 @@ def spaceapi():
         'address': ADDRESS,
         'lat': LAT,
         'lon': LON,
-        'open': open,
+        'open': is_open,
         'status': state_message,
         'lastchange': state_last_change,
         'phone': PHONE,
@@ -113,7 +113,7 @@ def spaceapi():
         },
         'state': {
             'lastchange': state_last_change,
-            'open': open,
+            'open': is_open,
             'message': state_message,
             'icon': {
                 'open': OPEN_URL,
@@ -186,7 +186,7 @@ def update_doorstate():
         if not hmac.compare_digest(
             calculate_hmac(data['time'], data['state'], ARGS.key),
             data['hmac']
-           ):
+        ):
             raise ValueError('hmac', 'HMAC digest is wrong. Do you have the right key?')
         if not data['time'].isnumeric():
             raise ValueError('time', 'Time has to be an integer timestamp.')
@@ -247,14 +247,13 @@ def get_all_doorstate():
 @APP.errorhandler(404)
 @APP.errorhandler(405)
 @APP.errorhandler(500)
-def error(error):
+def errorhandler(error):
     """JSON encode error messages."""
     return jsonify({
         'error_code': error.code,
         'error_name': error.name,
         'error_description': error.description,
     }), error.code
-
 
 
 if __name__ == '__main__':

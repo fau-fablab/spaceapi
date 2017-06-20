@@ -9,6 +9,7 @@ from enum import Enum
 
 class DoorState(Enum):
     """Valid door state values."""
+
     open = 'open'
     closed = 'closed'
 
