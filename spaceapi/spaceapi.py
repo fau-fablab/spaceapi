@@ -3,13 +3,13 @@
 """Small script to serve the SpaceAPI JSON API."""
 
 import hmac
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
-from flask import Flask, jsonify, request, abort
+from flask import Flask, abort, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 
 from lib_doorstate import (DoorState, calculate_hmac, human_time_since,
-                           parse_args)
+                           parse_args, utc_to_local)
 
 WEBSITE_URL = 'https://fablab.fau.de/'
 ADDRESS = 'Raum U1.239\nErwin-Rommel-Straße 60\n91058 Erlangen\nGermany'
@@ -49,7 +49,7 @@ class DoorStateEntry(DB.Model):
     """A door state changed entry in the database."""
 
     __tablename__ = 'doorstate'
-    time = DB.Column(DB.DateTime(), primary_key=True, index=True)
+    time = DB.Column(DB.DateTime(), primary_key=True, index=True, default=datetime.utcnow)
     state = DB.Column(DB.Enum(DoorState), nullable=False)
 
     def __init__(self, time, state):
@@ -154,15 +154,16 @@ def get_doorstate():
     if not latest_door_state:
         text = 'Keine aktuellen Informationen über den Türstatus vorhanden.'
     elif latest_door_state.state == DoorState.closed and \
-            latest_door_state.time.day != datetime.today().day:
+            utc_to_local(latest_door_state.time).date() != date.today():
+        # date.today is local tz
         text = 'Das FabLab war heute noch nicht geöffnet.'
     elif latest_door_state.state == DoorState.closed:
         text = 'Das FabLab war zuletzt vor {} geöffnet.'.format(
-            human_time_since(latest_door_state.time)
+            human_time_since(latest_door_state.time)  # everything UTC
         )
     elif latest_door_state.state == DoorState.open:
         text = 'Die FabLab-Tür ist seit {} offen.'.format(
-            human_time_since(latest_door_state.time)
+            human_time_since(latest_door_state.time)  # everything UTC
         )
     return jsonify({
         'state': latest_door_state.state.name if latest_door_state else 'unknown',
@@ -190,9 +191,9 @@ def update_doorstate():
             raise ValueError('hmac', 'HMAC digest is wrong. Do you have the right key?')
         if not data['time'].isnumeric():
             raise ValueError('time', 'Time has to be an integer timestamp.')
-        time = datetime.fromtimestamp(int(data['time']))
-        if abs(time - datetime.now()).total_seconds() > 60:
-            raise ValueError('time', 'Time is too far in the future or past. Use ntp!')
+        time = datetime.fromtimestamp(int(data['time']))  # data['time'] is UTC
+        if abs(time - datetime.utcnow()).total_seconds() > 60:
+            raise ValueError('time', 'Time is too far in the future or past. Use NTP and UTC!')
         if data['state'] not in DoorState.__members__:
             raise ValueError(
                 'state',
@@ -223,15 +224,15 @@ def get_all_doorstate():
         time_from = datetime.fromtimestamp(int(
             request.args.get(
                 'from',
-                (datetime.now() - timedelta(days=365)).timestamp(),
+                (datetime.utcnow() - timedelta(days=365)).timestamp(),
             )
-        ))
+        ))  # from and fallback are both UTC
         time_to = datetime.fromtimestamp(int(
             request.args.get(
                 'to',
-                datetime.now().timestamp(),
+                datetime.utcnow().timestamp(),
             )
-        ))
+        ))  # to and fallback are both UTC
     except ValueError:
         abort(400, 'From and to have to be timestamps')
 

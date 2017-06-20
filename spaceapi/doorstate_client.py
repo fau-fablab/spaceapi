@@ -57,8 +57,8 @@ if __name__ == '__main__':
         {
             'argument': '--time',
             'type': int,
-            'default': int(datetime.now().timestamp()),
-            'help': 'Timestamp since state changed (default now)',
+            'default': int(datetime.utcnow().timestamp()),
+            'help': 'UTC timestamp since state changed (default now)',
         },
         {
             'argument': '--state',

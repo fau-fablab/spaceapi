@@ -6,6 +6,8 @@ import hmac
 from datetime import datetime
 from enum import Enum
 
+from dateutil import tz
+
 
 class DoorState(Enum):
     """Valid door state values."""
@@ -55,8 +57,10 @@ def human_time_since(time_from, time_to=None):
     Return a german human readable string to describe the duration since time.
 
     The text fits in a phrase like "Das FabLab war vor ... geöffnet"
+    Param time_from: beginning of the time delta in UTC
+    Param time_to: end of the time delta in UTC
     """
-    diff = (time_to or datetime.now()) - time_from
+    diff = (time_to or datetime.utcnow()) - time_from
 
     if diff.total_seconds() < 60:
         return "wenigen Sekunden"
@@ -76,3 +80,11 @@ def human_time_since(time_from, time_to=None):
         return "einer Woche"
     else:
         return "{} Wochen".format(int(diff.total_seconds() // (60 * 60 * 24 * 7)))
+
+
+def utc_to_local(time):
+    """Convert a utc or naive date(time) object to local timezone."""
+    if time.tzinfo is not None and time.tzinfo != tz.tzlocal():
+        raise ValueError('Time is neither naive nor utc but {}.'.format(time.tzname()))
+
+    return time.replace(tzinfo=tz.tzutc()).astimezone(tz.tzlocal())
