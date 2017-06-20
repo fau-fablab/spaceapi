@@ -6,12 +6,10 @@ import hmac
 import os
 from datetime import datetime
 
-from bottle import (HTTP_CODES, error, get, install, json_dumps, post, request,
-                    response, run, static_file)
-from sqlalchemy import Column, DateTime, Enum, create_engine, desc
-from sqlalchemy.ext.declarative import declarative_base
+from flask import Flask, jsonify, request
+from flask_sqlalchemy import SQLAlchemy
+from flask_restless import APIManager
 
-from bottle.ext import sqlalchemy
 from lib_doorstate import DoorState, calculate_hmac, parse_args
 
 WEBSITE_URL = 'https://fablab.fau.de/'
@@ -22,17 +20,38 @@ OPEN_URL = 'https://fablab.fau.de/spaceapi/static/logo_open.png'
 CLOSED_URL = 'https://fablab.fau.de/spaceapi/static/logo_closed.png'
 PHONE = '+49 9131 85 28013'
 
-ARGS = None  # command line args
+ARGS = parse_args(
+    {
+        'argument': '--host',
+        'type': str,
+        'default': '0.0.0.0',
+        'help': 'Host to listen on (default 0.0.0.0)',
+    },
+    {
+        'argument': '--port',
+        'type': int,
+        'default': 8888,
+        'help': 'Port to listen on (default 8888)',
+    },
+    {
+        'argument': '--sql',
+        'type': str,
+        'default': 'sqlite:///:memory:',
+        'help': 'SQL connection string',
+    },
+)
+APP = Flask(__name__)
+APP.config['SQLALCHEMY_DATABASE_URI'] = ARGS.sql
+APP.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+DB = SQLAlchemy(APP)
 
-Base = declarative_base()
 
-
-class DoorStateEntry(Base):
+class DoorStateEntry(DB.Model):
     """A door state changed entry in the database."""
 
     __tablename__ = 'doorstate'
-    time = Column(DateTime(), primary_key=True)
-    state = Column(Enum(DoorState), nullable=False)
+    time = DB.Column(DB.DateTime(), primary_key=True)
+    state = DB.Column(DB.Enum(DoorState), nullable=False)
 
     def __init__(self, time, state):
         self.time = time
@@ -41,25 +60,38 @@ class DoorStateEntry(Base):
     def __repr__(self):
         return 'DoorStateEntry({}, {})'.format(self.time, self.state)
 
+    @property
+    def timestamp(self):
+        """Return the integer timestamp of this entry."""
+        return int(self.time.timestamp())
+
+    @property
+    def json(self):
+        """Return a json serializable dict for this entry."""
+        return {
+            'state': self.state.name,
+            'time': self.timestamp,
+        }
+
     @classmethod
-    def get_latest_state(cls, db_connection):
+    def get_latest_state(cls):
         """Return the most up to date entry."""
-        return db_connection.query(cls).order_by(desc(cls.time)).first()
+        return DoorStateEntry.query.order_by(DB.desc(cls.time)).first()
 
 
-@get('/')
-def spaceapi(db):
+@APP.route('/')
+def spaceapi():
     """
     Return the SpaceAPI JSON (spaceapi.net).
 
     This one is valid for version 0.8, 0.9, 0.11-0.13.
     """
-    latest_door_state = DoorStateEntry.get_latest_state(db)
+    latest_door_state = DoorStateEntry.get_latest_state()
     open = latest_door_state is not None and latest_door_state.state == DoorState.open
-    state_last_change = int(latest_door_state.time.timestamp()) if latest_door_state else 0
+    state_last_change = latest_door_state.timestamp if latest_door_state else 0
     state_message = 'you can call us, maybe someone is here'
 
-    return {
+    return jsonify({
         'api': '0.13',
         'space': 'FAU FabLab',
         'logo': WEBSITE_URL + 'spaceapi/static/logo_transparentbg.png',
@@ -114,16 +146,15 @@ def spaceapi(db):
             'open': OPEN_URL,
             'closed': CLOSED_URL,
         }
-    }
+    })
 
 
-@post('/update_doorstate/')
-def update_doorstate(db):
+@APP.route('/door/', methods=('POST', ))
+def update_doorstate():
     """Update doorstate (open, close, ...)."""
     required_params = {'time', 'state', 'hmac'}
-    response.content_type = 'application/json'
 
-    data = request.json or request.POST
+    data = request.json or request.form
 
     # validate
     try:
@@ -148,65 +179,34 @@ def update_doorstate(db):
                 )
             )
         state = DoorState[data['state']]
-        latest_door_state = DoorStateEntry.get_latest_state(db)
-        print(latest_door_state)
+        latest_door_state = DoorStateEntry.get_latest_state()
         if latest_door_state and latest_door_state.state == state:
             raise ValueError('state', 'Door is already {}'.format(state))
     except ValueError as err:
-        response.status = 400
-        return {err.args[0]: err.args[1]}
+        return jsonify({err.args[0]: err.args[1]}), 400
 
     # update doorstate
-    db.add(DoorStateEntry(time=time, state=state))
+    new_entry = DoorStateEntry(time=time, state=state)
+    APP.logger.debug('Updating door state: %(time)i: %(state)s', new_entry.json)
+    DB.session.add(new_entry)
+    DB.session.commit()
 
-    return {'state': state.name, 'time': int(time.timestamp())}
-
-
-@get('/static/<filename>')
-def server_static(filename):
-    return static_file(filename, root=os.path.join(
-        os.path.dirname(os.path.realpath(__file__)),
-        '../static/',
-    ))
+    return jsonify(new_entry.json)
 
 
-@error(404)
-@error(405)
-@error(500)
-def error404(error):
-    response.content_type = 'application/json'
-    return json_dumps({
-        'error_code': error.status_code,
-        'error_message': HTTP_CODES[error.status_code],
-    })
+@APP.errorhandler(404)
+@APP.errorhandler(405)
+@APP.errorhandler(500)
+def error(error):
+    """JSON encode error messages."""
+    return jsonify({
+        'error_code': error.code,
+        'error_name': error.name,
+        'error_description': error.description,
+    }), error.code
 
 
 
 if __name__ == '__main__':
-    ARGS = parse_args(
-        {
-            'argument': '--host',
-            'type': str,
-            'default': '0.0.0.0',
-            'help': 'Host to listen on (default 0.0.0.0)',
-        },
-        {
-            'argument': '--port',
-            'type': int,
-            'default': 8888,
-            'help': 'Port to listen on (default 8888)',
-        },
-        {
-            'argument': '--sql',
-            'type': str,
-            'default': 'sqlite:///:memory:',
-            'help': 'SQL connection string',
-        },
-    )
-    install(sqlalchemy.Plugin(
-        create_engine(ARGS.sql, echo=ARGS.debug),
-        Base.metadata,
-        create=True,
-        commit=True,
-    ))
-    run(host=ARGS.host, port=ARGS.port, debug=ARGS.debug)
+    DB.create_all()
+    APP.run(host=ARGS.host, port=ARGS.port, debug=ARGS.debug)

@@ -18,9 +18,22 @@ def update_doorstate(args):
         'state': args.state,
         'hmac': calculate_hmac(args.time, args.state, args.key)
     })
-    resp.raise_for_status()
+    try:
+        resp.raise_for_status()
+    except requests.HTTPError as err:
+        print('Error', err.response.status_code)
+        try:
+            resp_json = resp.json()
+            print(resp_json)
+        except Exception:
+            print(err)
+
+        exit(1)
+
     resp_json = resp.json()
-    if resp_json['time'] == args.time and resp_json['state'] == args.state:
+    if not 'time' in resp_json or not 'state' in resp_json:
+        print("Invalid response from API:", resp_json)
+    elif resp_json['time'] == args.time and resp_json['state'] == args.state:
         print('OK', args.time, args.state)
     else:
         print(
