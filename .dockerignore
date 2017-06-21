@@ -94,3 +94,5 @@ LICENSE
 README.md
 requirements-client.txt
 spaceapi/doorstate_client.py
+.directory
+*.db
