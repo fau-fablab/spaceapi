@@ -13,8 +13,13 @@ from dateutil import tz
 class DoorState(Enum):
     """Valid door state values."""
 
-    open = 'open'
+    opened = 'opened'
     closed = 'closed'
+
+
+def to_timestamp(time):
+    """Return time as integer timestamp."""
+    return int(time.timestamp())
 
 
 def add_key_arg(parser):
@@ -52,7 +57,7 @@ def add_time_arg(parser):
     parser.add_argument(
         '--time',
         type=int,
-        default=int(datetime.utcnow().timestamp()),
+        default=to_timestamp(datetime.utcnow()),
         help='UTC timestamp since state changed (default now)',
     )
 

@@ -14,13 +14,13 @@ from lib_doorstate import (add_debug_arg, add_key_arg, add_outfile_arg,
                            add_plot_type_arg, add_state_arg, add_time_arg,
                            add_url_arg, calculate_hmac,
                            json_response_error_handling,
-                           parse_args_and_read_key)
+                           parse_args_and_read_key, to_timestamp)
 
 ARGS = None  # command line args
 
 
 def update_doorstate(args):
-    """Update doorstate (open, close, ...)."""
+    """Update doorstate (opened, closed, ...)."""
     resp = requests.post(
         args.url,
         data={
@@ -42,53 +42,25 @@ def update_doorstate(args):
         )
 
 
-def _open_ranges_with_end(list_of_entries):
-    """
-    Generator to filter open ranges out of entries and add their end time.
-
-    >>> list(_with_end([
-            {'time': 0, 'state': 'open'},
-            {'time': 10, 'state': 'close'},
-            {'time': 20, 'state': 'open'},
-        ]))
-    [
-        {
-            'start': datetime.utcfromtimestamp(0),
-            'end': datetime.utcfromtimestamp(10),
-            'state': 'end',
-        },
-    ]
-    """
-    list_iterator = iter(list_of_entries)
-    last = next(list_iterator)
-    for entry in list_iterator:
-        start = datetime.utcfromtimestamp(last['time'])
-        end = datetime.utcfromtimestamp(entry['time'])
-        if last['state'] == 'open':
-            yield {
-                'start': start,
-                'end': end,
-                'state': last['state'],
-            }
-        last = entry
-
-
 def plot_by_hour(data, outfile):
     """Plot graph by hour."""
     fig = pyplot.figure()
     plot = fig.add_subplot(1, 1, 1)
 
-    for entry in _open_ranges_with_end(data):
-        start = entry['start']
-        starthour = start.time().hour + start.time().minute / 60
-        end = entry['end']
-        endhour = end.time().hour + end.time().minute / 60
+    for entry in data:
+        opened = utc_to_local(datetime.fromtimestamp(entry['opened']))
+        openedhour = opened.time().hour + opened.time().minute / 60
+        closed = utc_to_local(
+            datetime.fromtimestamp(entry['closed'])
+            if entry['closed'] else datetime.utcnow()
+        )
+        closedhour = closed.time().hour + closed.time().minute / 60
         # split entry if it spans to next day
-        if start.date() != end.date():
-            plot.vlines(start.date(), starthour, 24, color='g', lw=2)
-            plot.vlines(end.date(), 0, endhour, color='g', lw=2)
+        if opened.date() != closed.date():
+            plot.vlines(opened.date(), openedhour, 24, color='g', lw=2)
+            plot.vlines(closed.date(), 0, closedhour, color='g', lw=2)
         else:
-            plot.vlines(start.date(), starthour, endhour, color='g', lw=2)
+            plot.vlines(opened.date(), openedhour, closedhour, color='g', lw=2)
 
     plot.set_ylim(0, 24)
 
@@ -108,19 +80,22 @@ def plot_by_hour(data, outfile):
 def plot_by_week(data, outfile):
     """Plot graph by week."""
     data_by_week = defaultdict(timedelta)  # Save open duration per week
-    for entry in _open_ranges_with_end(data):
-        start = entry['start']
-        end = entry['end']
-        # get the previous monday of start date
-        last_monday = (start - timedelta(days=start.weekday())).date()
+    for entry in data:
+        opened = utc_to_local(datetime.fromtimestamp(entry['opened']))
+        closed = utc_to_local(
+            datetime.fromtimestamp(entry['closed'])
+            if entry['closed'] else datetime.utcnow()
+        )
+        # get the previous monday of opened date
+        last_monday = (opened - timedelta(days=opened.weekday())).date()
         last_monday = datetime.combine(last_monday, time(0))  # ... at 0:00
         while True:
-            # for each week between start and end add the open time duration
+            # for each week between opened and closed add the open time duration
             next_monday = last_monday + timedelta(days=7)
-            data_by_week[last_monday.date()] += min(end, next_monday) - start
-            start = min(end, next_monday)
+            data_by_week[last_monday.date()] += min(closed, next_monday) - opened
+            opened = min(closed, next_monday)
             last_monday = next_monday
-            if end == start:
+            if closed == opened:
                 break
 
     fig = pyplot.figure()
@@ -150,7 +125,7 @@ def plot_doorstate(args):
     """Generate plots."""
     resp = requests.get(
         args.url,
-        params={'from': int((datetime.utcnow() - timedelta(days=365)).timestamp())},
+        params={'from': to_timestamp(datetime.utcnow() - timedelta(days=365))},
     )
     resp_json = json_response_error_handling(resp)
 
