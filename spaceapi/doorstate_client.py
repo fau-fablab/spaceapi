@@ -13,10 +13,26 @@ from matplotlib import pyplot
 from lib_doorstate import (add_debug_arg, add_key_arg, add_outfile_arg,
                            add_plot_type_arg, add_state_arg, add_time_arg,
                            add_url_arg, calculate_hmac,
-                           json_response_error_handling,
-                           parse_args_and_read_key, to_timestamp)
+                           parse_args_and_read_key, to_timestamp, utc_to_local)
 
 ARGS = None  # command line args
+
+
+def _json_response_error_handling(response):
+    """Return the response json of a request after error handling."""
+    try:
+        response.raise_for_status()
+    except requests.HTTPError as err:
+        print('Error', err.response.status_code)
+        try:
+            response_json = response.json()
+            print(response_json)
+        except Exception:
+            print(err)
+
+        exit(1)
+
+    return response.json()
 
 
 def update_doorstate(args):
@@ -29,7 +45,7 @@ def update_doorstate(args):
             'hmac': calculate_hmac(args.time, args.state, args.key)
         }
     )
-    resp_json = json_response_error_handling(resp)
+    resp_json = _json_response_error_handling(resp)
     if 'time' not in resp_json or 'state' not in resp_json:
         print("Invalid response from API:", resp_json)
     elif resp_json['time'] == args.time and resp_json['state'] == args.state:
@@ -127,7 +143,7 @@ def plot_doorstate(args):
         args.url,
         params={'from': to_timestamp(datetime.utcnow() - timedelta(days=365))},
     )
-    resp_json = json_response_error_handling(resp)
+    resp_json = _json_response_error_handling(resp)
 
     if not isinstance(resp_json, list):
         print('Invalid reponse from API:', resp_json)

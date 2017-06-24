@@ -6,7 +6,6 @@ import hmac
 from datetime import datetime
 from enum import Enum
 
-import requests
 from dateutil import tz
 
 
@@ -178,20 +177,3 @@ def utc_to_local(time):
         raise ValueError('Time is neither naive nor utc but {}.'.format(time.tzname()))
 
     return time.replace(tzinfo=tz.tzutc()).astimezone(tz.tzlocal())
-
-
-def json_response_error_handling(response):
-    """Return the response json of a request after error handling."""
-    try:
-        response.raise_for_status()
-    except requests.HTTPError as err:
-        print('Error', err.response.status_code)
-        try:
-            response_json = response.json()
-            print(response_json)
-        except Exception:
-            print(err)
-
-        exit(1)
-
-    return response.json()

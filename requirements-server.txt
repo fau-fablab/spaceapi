@@ -3,4 +3,3 @@ flask-sqlalchemy
 pymysql
 python-dateutil
 argparse
-requests
