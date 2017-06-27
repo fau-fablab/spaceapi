@@ -47,10 +47,10 @@ def update_doorstate(args):
         }
     )
     resp_json = _json_response_error_handling(resp)
-    if 'time' not in resp_json or 'state' not in resp_json:
+    if any((key not in resp_json for key in {'time', 'state', '_text'})):
         print("Invalid response from API:", resp_json)
-    elif resp_json['time'] == args.time and resp_json['state'] == args.state:
-        print('OK', args.time, args.state)
+    elif resp_json['time'] <= args.time and resp_json['state'] == args.state:
+        print('OK', resp_json['_text'])
     else:
         print(
             'The API missunderstood our request. Sent:',

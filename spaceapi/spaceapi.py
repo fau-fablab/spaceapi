@@ -227,21 +227,40 @@ def update_doorstate():
         latest_door_state = OpeningPeriod.get_latest_state()
         if latest_door_state:
             if latest_door_state.state == state:
-                raise ValueError('state', 'Door is already {}'.format(state.name))
+                # already opened/closed
+                return jsonify({
+                    'time': latest_door_state.last_change_timestamp,
+                    'state': latest_door_state.state.name,
+                    '_text': 'door was already {} at {}'.format(
+                        latest_door_state.state.name, latest_door_state.last_change_timestamp,
+                    ),
+                })
             elif latest_door_state.last_change_timestamp >= to_timestamp(time):
                 raise ValueError('time', 'New entry must be newer than latest entry.')
         elif state == DoorState.closed:
-            raise ValueError('state', 'Door is already closed')
+            # no entry: we assume the door was closed before -> already closed
+            return jsonify({
+                'time': 0,
+                'state': DoorState.closed.name,
+                '_text': "door was already closed."
+                " To be honest, we don't have any data yet but the first entry has to be 'opened'.",
+            })
     except ValueError as err:
         abort(400, {err.args[0]: err.args[1]})
 
     # update doorstate
     if latest_door_state and latest_door_state.is_open and state == DoorState.closed:
         latest_door_state.closed = time
-        APP.logger.debug('Closing door. Resulting entry: open from %(opened)i till %(closed)i', latest_door_state.to_dict())
+        APP.logger.debug(
+            'Closing door. Resulting entry: open from %(opened)i till %(closed)i',
+            latest_door_state.to_dict()
+        )
     elif (not latest_door_state or not latest_door_state.is_open) and state == DoorState.opened:
         latest_door_state = OpeningPeriod(opened=time)
-        APP.logger.debug('Opening door. New entry: open from %(opened)i till t.b.a.', latest_door_state.to_dict())
+        APP.logger.debug(
+            'Opening door. New entry: open from %(opened)i till t.b.a.',
+            latest_door_state.to_dict()
+        )
         DB.session.add(latest_door_state)
     else:
         abort(500, 'This should not happen')
@@ -249,6 +268,9 @@ def update_doorstate():
     return jsonify({
         'time': latest_door_state.last_change_timestamp,
         'state': latest_door_state.state.name,
+        '_text': 'door is now {} (time: {})'.format(
+            latest_door_state.state.name, latest_door_state.last_change_timestamp,
+        ),
     })
 
 
@@ -287,10 +309,10 @@ def get_all_doorstate():
 def errorhandler(error):
     """JSON encode error messages."""
     return jsonify({
-        'error_code': error.code,
-        'error_name': error.name,
-        'error_description': error.description,
-    }), error.code
+        'error_code': getattr(error, 'code', 500),
+        'error_name': getattr(error, 'name', 'Internal Server Error'),
+        'error_description': getattr(error, 'description', ''),
+    }), getattr(error, 'code', 500)
 
 
 if __name__ == '__main__':
