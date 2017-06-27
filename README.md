@@ -105,6 +105,18 @@ Notes:
 
 ![example by week plot](./example_by_week_plot.png)
 
+## Installation on ws01
+
+We have a serial read sensor to query the door state. It is located in our "ws01" linux pc. It uses the script `misc/update-status.sh`. This script will be started every minute by the systemd timer in `misc/`. To install the timer run:
+
+```sh
+cp misc/update_doorstate.{service,timer} /etc/systemd/system/
+systemctl daemon-reload
+systemctl start update_doorstate.timer
+systemctl enable update_doorstate.timer
+systemctl list-timers
+```
+
 ## License
 
 [GPLv3](LICENSE)

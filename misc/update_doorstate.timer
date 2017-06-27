@@ -1,0 +1,11 @@
+[Unit]
+Description=Update door state every minute
+Documentation=https://github.com/fau-fablab/spaceapi/
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+Persistent=true
+WakeSystem=true
+
+[Install]
+WantedBy=timers.target

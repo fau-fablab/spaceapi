@@ -1,0 +1,7 @@
+[Unit]
+Description=Update door state on our SpaceAPI
+Documentation=https://github.com/fau-fablab/spaceapi/
+
+[Service]
+User=tuerstatus
+ExecStart=/home/tuerstatus/spaceapi/misc/update-status.sh
