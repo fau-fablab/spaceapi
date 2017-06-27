@@ -65,27 +65,27 @@ actions:
 
 ```
 usage: Client script to update the doorstate on our website or to make plots. update
-       [-h] [--debug] [--url URL] --key KEY [--time TIME] --state {open,closed}
+       [-h] [--debug] [--url URL] --key KEY [--time TIME] --state {opened,closed}
 
 optional arguments:
   -h, --help            show this help message and exit
   --debug               Enable debug output
   --url URL             URL to API endpoint
   --key KEY             Path to HMAC key file
-  --time TIME           UTC timestamp since state changed (default now)
-  --state {open,closed}
+  --time TIME           Timestamp since state changed (default now)
+  --state {opened,closed}
                         New state
 ```
 
 ```
 usage: Client script to update the doorstate on our website or to make plots. plot
-       [-h] [--url URL] [--debug] --plot-type {by-week,by-hour} --out OUT
+       [-h] [--url URL] [--debug] --plot-type {by-hour,by-week} --out OUT
 
 optional arguments:
   -h, --help            show this help message and exit
   --url URL             URL to API endpoint
   --debug               Enable debug output
-  --plot-type {by-week,by-hour}
+  --plot-type {by-hour,by-week}
                         The type of the graph to plot
   --out OUT             The file to write the image
 ```
