@@ -7,13 +7,14 @@ from collections import defaultdict
 from datetime import datetime, time, timedelta
 
 import requests
+from dateutil.tz import tzlocal
 from matplotlib import dates as mdates
 from matplotlib import pyplot
 
 from lib_doorstate import (add_debug_arg, add_key_arg, add_outfile_arg,
                            add_plot_type_arg, add_state_arg, add_time_arg,
                            add_url_arg, calculate_hmac,
-                           parse_args_and_read_key, to_timestamp, utc_to_local)
+                           parse_args_and_read_key, to_timestamp)
 
 ARGS = None  # command line args
 
@@ -64,11 +65,11 @@ def plot_by_hour(data, outfile):
     plot = fig.add_subplot(1, 1, 1)
 
     for entry in data:
-        opened = utc_to_local(datetime.fromtimestamp(entry['opened']))
+        opened = datetime.fromtimestamp(entry['opened'], tzlocal())
         openedhour = opened.time().hour + opened.time().minute / 60
-        closed = utc_to_local(
-            datetime.fromtimestamp(entry['closed'])
-            if entry['closed'] else datetime.utcnow()
+        closed = (
+            datetime.fromtimestamp(entry['closed'], tzlocal())
+            if entry['closed'] else datetime.now(tzlocal())
         )
         closedhour = closed.time().hour + closed.time().minute / 60
         # split entry if it spans to next day
@@ -97,14 +98,14 @@ def plot_by_week(data, outfile):
     """Plot graph by week."""
     data_by_week = defaultdict(timedelta)  # Save open duration per week
     for entry in data:
-        opened = utc_to_local(datetime.fromtimestamp(entry['opened']))
-        closed = utc_to_local(
-            datetime.fromtimestamp(entry['closed'])
-            if entry['closed'] else datetime.utcnow()
+        opened = datetime.fromtimestamp(entry['opened'], tzlocal())
+        closed = (
+            datetime.fromtimestamp(entry['closed'], tzlocal())
+            if entry['closed'] else datetime.now(tzlocal())
         )
         # get the previous monday of opened date
         last_monday = (opened - timedelta(days=opened.weekday())).date()
-        last_monday = datetime.combine(last_monday, time(0))  # ... at 0:00
+        last_monday = datetime.combine(last_monday, time(0), tzlocal())  # ... at 0:00
         while True:
             # for each week between opened and closed add the open time duration
             next_monday = last_monday + timedelta(days=7)
@@ -141,7 +142,7 @@ def plot_doorstate(args):
     """Generate plots."""
     resp = requests.get(
         args.url,
-        params={'from': to_timestamp(datetime.utcnow() - timedelta(days=365))},
+        params={'from': to_timestamp(datetime.now(tzlocal()) - timedelta(days=365))},
     )
     resp_json = _json_response_error_handling(resp)
 

@@ -4,9 +4,10 @@
 
 import argparse
 import hmac
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from time import sleep
 
+from dateutil.tz import tzlocal
 from flask import Flask, abort, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import OperationalError
@@ -14,7 +15,7 @@ from sqlalchemy.exc import OperationalError
 from lib_doorstate import (DoorState, add_debug_arg, add_host_arg, add_key_arg,
                            add_port_arg, add_sql_arg, calculate_hmac,
                            human_time_since, parse_args_and_read_key,
-                           to_timestamp, utc_to_local)
+                           to_timestamp)
 
 WEBSITE_URL = 'https://fablab.fau.de/'
 ADDRESS = 'Raum U1.239\nErwin-Rommel-Straße 60\n91058 Erlangen\nGermany'
@@ -49,8 +50,8 @@ class OpeningPeriod(DB.Model):
     """An entry for a time duration when the FabLab door was opened."""
 
     __tablename__ = 'openingperiod'
-    opened = DB.Column(DB.DateTime(), primary_key=True, index=True, default=datetime.utcnow)
-    closed = DB.Column(DB.DateTime(), nullable=True)
+    opened = DB.Column(DB.DateTime(timezone=True), primary_key=True, index=True, default=datetime.utcnow)
+    closed = DB.Column(DB.DateTime(timezone=True), nullable=True)
 
     def __init__(self, opened, closed=None):
         self.opened = opened
@@ -176,16 +177,15 @@ def get_doorstate():
     if not latest_door_state:
         text = 'Keine aktuellen Informationen über den Türstatus vorhanden.'
     elif not latest_door_state.is_open and \
-            utc_to_local(latest_door_state.closed).date() != date.today():
-        # date.today is local tz
+            latest_door_state.closed.date() != datetime.now(tzlocal()).date():
         text = 'Das FabLab war heute noch nicht geöffnet.'
     elif not latest_door_state.is_open:
         text = 'Das FabLab war zuletzt vor {} geöffnet.'.format(
-            human_time_since(latest_door_state.closed)  # everything UTC
+            human_time_since(latest_door_state.closed)
         )
     elif latest_door_state.is_open:
         text = 'Die FabLab-Tür ist seit {} offen.'.format(
-            human_time_since(latest_door_state.opened)  # everything UTC
+            human_time_since(latest_door_state.opened)
         )
     return jsonify({
         'state': latest_door_state.state.name if latest_door_state else 'unknown',
@@ -213,9 +213,9 @@ def update_doorstate():
             raise ValueError('hmac', 'HMAC digest is wrong. Do you have the right key?')
         if not data['time'].isnumeric():
             raise ValueError('time', 'Time has to be an integer timestamp.')
-        time = datetime.fromtimestamp(int(data['time']))  # data['time'] is UTC
-        if abs(time - datetime.utcnow()).total_seconds() > 60:
-            raise ValueError('time', 'Time is too far in the future or past. Use NTP and UTC!')
+        time = datetime.fromtimestamp(int(data['time']), tzlocal())
+        if abs(time - datetime.now(tzlocal())).total_seconds() > 60:
+            raise ValueError('time', 'Time is too far in the future or past. Use NTP!')
         if data['state'] not in DoorState.__members__:
             raise ValueError(
                 'state',
@@ -228,8 +228,7 @@ def update_doorstate():
         if latest_door_state:
             if latest_door_state.state == state:
                 raise ValueError('state', 'Door is already {}'.format(state.name))
-            elif latest_door_state.last_change_timestamp >= time.timestamp():
-                # both is UTC
+            elif latest_door_state.last_change_timestamp >= to_timestamp(time):
                 raise ValueError('time', 'New entry must be newer than latest entry.')
         elif state == DoorState.closed:
             raise ValueError('state', 'Door is already closed')
@@ -260,15 +259,15 @@ def get_all_doorstate():
         time_from = datetime.fromtimestamp(int(
             request.args.get(
                 'from',
-                (datetime.utcnow() - timedelta(days=365)).timestamp(),
+                (datetime.now(tzlocal()) - timedelta(days=365)).timestamp(),
             )
-        ))  # from and fallback are both UTC
+        ), tzlocal())
         time_to = datetime.fromtimestamp(int(
             request.args.get(
                 'to',
-                datetime.utcnow().timestamp(),
+                datetime.now(tzlocal()).timestamp(),
             )
-        ))  # to and fallback are both UTC
+        ), tzlocal())
     except ValueError:
         abort(400, 'From and to have to be timestamps')
 
