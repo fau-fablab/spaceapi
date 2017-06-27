@@ -105,9 +105,13 @@ Notes:
 
 ![example by week plot](./example_by_week_plot.png)
 
-## Installation on ws01
+## Installation on `ws01`
 
-We have a serial read sensor to query the door state. It is located in our "ws01" linux pc. It uses the script `misc/update-status.sh`. This script will be started every minute by the systemd timer in `misc/`. To install the timer run:
+We have a serial read sensor to query the door state.
+It is located in our `ws01` Linux pc.
+It uses the script `misc/update-status.sh`.
+This script will be started every minute by the systemd timer in `misc/`.
+To install the timer run:
 
 ```sh
 cp misc/update_doorstate.{service,timer} /etc/systemd/system/
@@ -116,6 +120,14 @@ systemctl start update_doorstate.timer
 systemctl enable update_doorstate.timer
 systemctl list-timers
 ```
+
+## Embed on Website
+
+We embed the door state information provided by `[/spaceapi]/door/` on our WordPress website using
+the HTML template `misc/doorstate.html`. You can copy and paste the template into a WordPress text
+widget by switching to `Text` tab and save it. Never switch to `Visual` mode, it destroys the HTML.
+The door state will be visible *after* clicking on save.
+Ensure that jQuery is available as `jQuery` variable.
 
 ## License
 

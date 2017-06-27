@@ -1,0 +1,37 @@
+<strong class="fablab_doorstate"></strong>
+<style>
+  .fablab_doorstate.opened {
+    color: #209365;
+  }
+  .fablab_doorstate.closed {
+    color: #C32027;
+  }
+  .fablab_doorstate.outdated {
+    color: #153a63;
+  }
+</style>
+<script>
+function setDoorState(state, text) {
+  var doorState = jQuery('.fablab_doorstate');
+  if (doorState.text() != text || !doorState.hasClass(state)) {
+    doorState.fadeOut('slow', function() {
+      doorState.removeClass('opened closed outdated').addClass(state).text(text).fadeIn();
+    });
+  }
+}
+function updateDoorState() {
+  jQuery.getJSON('/spaceapi/door/', function(data) {
+    var outdated = (new Date() / 1000 - data.time) > (60 * 60 * 24 * 7)
+    // new Date() / 1000: get current timestamp in sec instead of msec
+    // the info is outdated if it is older than one week
+    setDoorState(
+      outdated ? 'outdated' : data.state,
+      data.text + (outdated ? ' (Diese Information ist evtl. veraltet.) ' : ''),
+    );
+  });
+}
+jQuery(document).ready(function() {
+  updateDoorState();
+  window.setInterval(updateDoorState, 60 * 1000);
+});
+</script>
