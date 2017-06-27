@@ -109,7 +109,7 @@ def spaceapi():
     state_last_change = (
         0 if not latest_door_state else latest_door_state.last_change_timestamp
     )
-    state_message = 'you can call us, maybe someone is here'
+    state_message = 'door is open' if is_open else 'door is closed'
 
     return jsonify({
         'api': '0.13',
