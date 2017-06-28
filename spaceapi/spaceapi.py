@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from time import sleep
 
 from dateutil.tz import tzlocal
-from flask import Flask, abort, jsonify, request
+from flask import Flask, abort, jsonify, redirect, request, url_for
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import OperationalError
 
@@ -22,8 +22,6 @@ WEBSITE_URL = 'https://fablab.fau.de/'
 ADDRESS = 'Raum U1.239\nErwin-Rommel-Straße 60\n91058 Erlangen\nGermany'
 LAT = 49.574
 LON = 11.03
-OPEN_URL = 'https://fablab.fau.de/spaceapi/static/logo_open.png'
-CLOSED_URL = 'https://fablab.fau.de/spaceapi/static/logo_closed.png'
 PHONE = '+49 9131 85 28013'
 
 
@@ -41,7 +39,11 @@ def parse_args():
 
 
 ARGS = parse_args()
-APP = Flask(__name__)
+APP = Flask(
+    __name__,
+    static_folder='../static/',
+    static_url_path='/spaceapi/static'
+)
 APP.config['SQL'] = ARGS.sql
 APP.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -126,7 +128,7 @@ def spaceapi():
     return jsonify({
         'api': '0.13',
         'space': 'FAU FabLab',
-        'logo': WEBSITE_URL + 'spaceapi/static/logo_transparentbg.png',
+        'logo': url_for('static', filename='logo_transparentbg.png'),
         'url': WEBSITE_URL,
         'address': ADDRESS,
         'lat': LAT,
@@ -150,8 +152,8 @@ def spaceapi():
             'open': is_open,
             'message': state_message,
             'icon': {
-                'open': OPEN_URL,
-                'closed': CLOSED_URL,
+                'open': url_for('static', filename='logo_opened.png'),
+                'closed': url_for('static', filename='logo_closed.png'),
             },
         },
         'cache': {
@@ -175,8 +177,8 @@ def spaceapi():
             },
         },
         'icon': {
-            'open': OPEN_URL,
-            'closed': CLOSED_URL,
+            'open': url_for('static', filename='logo_opened.png'),
+            'closed': url_for('static', filename='logo_closed.png'),
         }
     })
 
@@ -286,7 +288,7 @@ def update_doorstate():
 
 
 @APP.route('/spaceapi/door/all/', methods=('GET', ))
-def get_all_doorstate():
+def get_doorstate_all():
     """Return the current door state. Filter by opened time using from and to."""
     try:
         time_from = datetime.fromtimestamp(int(
@@ -311,6 +313,15 @@ def get_all_doorstate():
         OpeningPeriod.opened <= time_to,
     ).limit(2000).all()
     return jsonify([entry.to_dict() for entry in all_entries])
+
+
+@APP.route('/spaceapi/door/icon/', methods=('GET', ))
+def get_doorstate_icon():
+    """Redirect to the icon that describes the current door state."""
+    latest_door_state = OpeningPeriod.get_latest_state()
+    return redirect(url_for('static', filename='logo_{}.png'.format(
+        (latest_door_state.state if latest_door_state else DoorState.closed).name
+    )))
 
 
 @APP.errorhandler(400)
