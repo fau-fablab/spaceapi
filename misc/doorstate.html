@@ -12,12 +12,14 @@
 </style>
 <script>
 function setDoorState(state, text) {
-  var doorState = jQuery('.fablab_doorstate');
-  if (doorState.text() != text || !doorState.hasClass(state)) {
-    doorState.fadeOut('slow', function() {
-      doorState.removeClass('opened closed outdated').addClass(state).text(text).fadeIn();
-    });
-  }
+  jQuery('.fablab_doorstate').each(function(){
+    var element = jQuery(this);
+    if (element.text() != text || !element.hasClass(state)) {
+      element.fadeOut('slow', function() {
+        element.removeClass('opened closed outdated').addClass(state).text(text).fadeIn();
+      });
+    }
+  });
 }
 function updateDoorState() {
   jQuery.getJSON('/spaceapi/door/', function(data) {
