@@ -111,12 +111,19 @@ class OpeningPeriod(DB.Model):
         return OpeningPeriod.query.order_by(DB.desc(cls.opened)).first()
 
 
+@APP.route('/')
+def root():
+    """Redirect to /spaceapi/."""
+    return redirect(url_for('spaceapi'), 301)
+
+
 @APP.route('/spaceapi/')
 def spaceapi():
     """
     Return the SpaceAPI JSON (spaceapi.net).
 
-    This one is valid for version 0.8, 0.9, 0.11-0.13.
+    This one is valid for version 0.8, 0.9, 0.11, 0.13.
+    feeds as dictionary breaks compatibility to 0.12.
     """
     latest_door_state = OpeningPeriod.get_latest_state()
     is_open = latest_door_state is not None and latest_door_state.is_open
@@ -169,12 +176,25 @@ def spaceapi():
         ],
         'contact': {
             'phone': PHONE,
+            'sip': 'sip:3280@hg.eventphone.de',
             'twitter': "@FAUFabLab",
             'ml': "fablab-aktive@fablab.fau.de",
-            'facebook': "FAUFabLab",
+            'facebook': "https://facebook.com/FAUFabLab",
             'google': {
                 'plus': "+FAUFabLabErlangen",
             },
+            'issue_mail': 'c3BhY2VhcGlAZmFibGFiLmZhdS5kZQ==',  # base64 encoded
+        },
+        'feeds': {
+            'blog': {
+                'type': 'rss',
+                'url': WEBSITE_URL + '/feed/',
+            },
+            # TODO wiki
+            'calendar': {
+                'type': 'ical',
+                'url': 'https://calendar.google.com/calendar/ical/google%40fablab.fau.de/public/basic.ics',
+            }
         },
         'icon': {
             'open': WEBSITE_URL + url_for('static', filename='logo_opened.png'),
