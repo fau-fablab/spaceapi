@@ -4,6 +4,7 @@
 
 import argparse
 import hmac
+import os
 from datetime import datetime, timedelta
 from time import sleep
 
@@ -41,8 +42,18 @@ def parse_args():
 
 ARGS = parse_args()
 APP = Flask(__name__)
-APP.config['SQLALCHEMY_DATABASE_URI'] = ARGS.sql
+APP.config['SQL'] = ARGS.sql
 APP.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# if environment variable SPACEAPI_$CONFIG is set, this value will be used
+for key, value in os.environ.items():
+    if key.startswith('SPACEAPI_'):
+        APP.config[key.replace('SPACEAPI_', '', 1)] = value
+
+if os.path.isfile('/etc/spaceapi.py'):
+    APP.config.from_pyfile('/etc/spaceapi.py')
+
+APP.config['SQLALCHEMY_DATABASE_URI'] = APP.config['SQL']
 DB = SQLAlchemy(APP)
 
 
@@ -98,7 +109,7 @@ class OpeningPeriod(DB.Model):
         return OpeningPeriod.query.order_by(DB.desc(cls.opened)).first()
 
 
-@APP.route('/')
+@APP.route('/spaceapi/')
 def spaceapi():
     """
     Return the SpaceAPI JSON (spaceapi.net).
@@ -170,7 +181,7 @@ def spaceapi():
     })
 
 
-@APP.route('/door/', methods=('GET', ))
+@APP.route('/spaceapi/door/', methods=('GET', ))
 def get_doorstate():
     """Return the current door state."""
     latest_door_state = OpeningPeriod.get_latest_state()
@@ -194,7 +205,7 @@ def get_doorstate():
     })
 
 
-@APP.route('/door/', methods=('POST', ))
+@APP.route('/spaceapi/door/', methods=('POST', ))
 def update_doorstate():
     """Update doorstate (opened, close, ...)."""
     required_params = {'time', 'state', 'hmac'}
@@ -274,7 +285,7 @@ def update_doorstate():
     })
 
 
-@APP.route('/door/all/', methods=('GET', ))
+@APP.route('/spaceapi/door/all/', methods=('GET', ))
 def get_all_doorstate():
     """Return the current door state. Filter by opened time using from and to."""
     try:

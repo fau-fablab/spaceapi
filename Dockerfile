@@ -12,4 +12,5 @@ USER www-data
 
 EXPOSE 8888
 
-CMD /srv/spaceapi/spaceapi.py --key /mnt/secrets/spaceapi/key --sql "mysql+pymysql://spaceapi:$(cat /mnt/secrets/db_password)@mariadb/spaceapi" --host '0.0.0.0' --port 8888
+# more settings will be provided in /etc/spaceapi.py
+CMD /srv/spaceapi/spaceapi.py --key /mnt/secrets/spaceapi/key --host '0.0.0.0' --port 8888

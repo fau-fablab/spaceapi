@@ -38,6 +38,16 @@ Notes:
   [`PyMySQL`](http://docs.sqlalchemy.org/en/latest/dialects/mysql.html#module-sqlalchemy.dialects.mysql.pymysql) installed.
 - it is tested with SQLite3 and MySQL but may work with other SQL databases, too. See http://docs.sqlalchemy.org/en/latest/dialects/
 - default driver is `sqlite3` with database `sqlite:///:memory:` (does not persists during restarts of the server)
+- You can also make *some* configurations for the server script in `/etc/spaceapi.py` or as
+  environment variable
+  - the config file syntax is a key value py file syntax
+  - you can't configure the key there (for reasons)
+  - example environment variables: `SPACEAPI_SQL="sqlite:///db.db"`, `SPACEAPI_HOST="0.0.0.0"`
+  - example config file:
+```py
+SQL = "sqlite:///db.db"
+HOST = "192.168.1.1"
+```
 
 ## Client
 
@@ -93,8 +103,8 @@ optional arguments:
 ### Example:
 
 ```sh
-./spaceapi/doorstate_client.py update --key /etc/machine-id --url http://127.0.0.1:1337/door/ --debug --state open
-./spaceapi/doorstate_client.py plot --url http://127.0.0.1:1337/door/all/ --debug --plot-type by-hour --out image.png
+./spaceapi/doorstate_client.py update --key /etc/machine-id --url http://127.0.0.1:1337/spaceapi/door/ --debug --state open
+./spaceapi/doorstate_client.py plot --url http://127.0.0.1:1337/spaceapi/door/all/ --debug --plot-type by-hour --out image.png
 ```
 
 Notes:
@@ -123,7 +133,7 @@ systemctl list-timers
 
 ## Embed on Website
 
-We embed the door state information provided by `[/spaceapi]/door/` on our WordPress website using
+We embed the door state information provided by `/spaceapi/door/` on our WordPress website using
 the HTML template `misc/doorstate.html`. You can copy and paste the template into a WordPress text
 widget by switching to `Text` tab and save it. Never switch to `Visual` mode, it destroys the HTML.
 The door state will be visible *after* clicking on save.
