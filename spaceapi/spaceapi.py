@@ -18,7 +18,7 @@ from lib_doorstate import (DoorState, add_debug_arg, add_host_arg, add_key_arg,
                            human_time_since, parse_args_and_read_key,
                            to_timestamp)
 
-WEBSITE_URL = 'https://fablab.fau.de/'
+WEBSITE_URL = 'https://fablab.fau.de'  # without trailing slash
 ADDRESS = 'Raum U1.239\nErwin-Rommel-Straße 60\n91058 Erlangen\nGermany'
 LAT = 49.574
 LON = 11.03
@@ -128,8 +128,8 @@ def spaceapi():
     return jsonify({
         'api': '0.13',
         'space': 'FAU FabLab',
-        'logo': url_for('static', filename='logo_transparentbg.png'),
-        'url': WEBSITE_URL,
+        'logo': WEBSITE_URL + url_for('static', filename='logo_transparentbg.png'),
+        'url': WEBSITE_URL + '/',
         'address': ADDRESS,
         'lat': LAT,
         'lon': LON,
@@ -152,15 +152,15 @@ def spaceapi():
             'open': is_open,
             'message': state_message,
             'icon': {
-                'open': url_for('static', filename='logo_opened.png'),
-                'closed': url_for('static', filename='logo_closed.png'),
+                'open': WEBSITE_URL + url_for('static', filename='logo_opened.png'),
+                'closed': WEBSITE_URL + url_for('static', filename='logo_closed.png'),
             },
         },
         'cache': {
             'schedule': "m.05",
         },
         'projects': [
-            WEBSITE_URL + 'project/',
+            WEBSITE_URL + '/project/',
             "https://github.com/fau-fablab/",
         ],
         'issue_report_channels': [
@@ -177,8 +177,8 @@ def spaceapi():
             },
         },
         'icon': {
-            'open': url_for('static', filename='logo_opened.png'),
-            'closed': url_for('static', filename='logo_closed.png'),
+            'open': WEBSITE_URL + url_for('static', filename='logo_opened.png'),
+            'closed': WEBSITE_URL + url_for('static', filename='logo_closed.png'),
         }
     })
 
