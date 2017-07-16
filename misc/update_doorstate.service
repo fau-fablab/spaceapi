@@ -1,7 +1,11 @@
 [Unit]
 Description=Update door state on our SpaceAPI
 Documentation=https://github.com/fau-fablab/spaceapi/
+After=network.target
 
 [Service]
 User=tuerstatus
 ExecStart=/home/tuerstatus/spaceapi/misc/update-status.sh
+
+[Install]
+WantedBy=multi-user.target
