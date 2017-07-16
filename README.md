@@ -134,10 +134,7 @@ systemctl list-timers
 ## Embed on Website
 
 We embed the door state information provided by `/spaceapi/door/` on our WordPress website using
-the HTML template `misc/doorstate.html`. You can copy and paste the template into a WordPress text
-widget by switching to `Text` tab and save it. Never switch to `Visual` mode, it destroys the HTML.
-The door state will be visible *after* clicking on save.
-Ensure that jQuery is available as `jQuery` variable.
+the widget in https://github.com/fau-fablab/wp-fau-fablab-mods/
 
 ## License
 
