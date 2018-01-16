@@ -1,6 +1,8 @@
 FROM fablab.fau.de/basislinux
 
-RUN apt update && apt -y install python3-pip && apt clean
+RUN apt update && \
+    apt -y install python3-pip && \
+    apt clean
 
 ADD . /srv/
 

@@ -193,7 +193,7 @@ def spaceapi():
             # TODO wiki
             'calendar': {
                 'type': 'ical',
-                'url': 'https://calendar.google.com/calendar/ical/google%40fablab.fau.de/public/basic.ics',
+                'url': WEBSITE_URL + '/termine/ical'
             }
         },
         'icon': {
