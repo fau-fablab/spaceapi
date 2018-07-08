@@ -1,7 +1,7 @@
 FROM fablab.fau.de/basislinux
 
 RUN apt update && \
-    apt -y install python3-pip && \
+    apt -y install python3-pip libssl-dev && \
     apt clean
 
 ADD . /srv/
