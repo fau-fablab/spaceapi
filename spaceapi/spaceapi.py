@@ -59,19 +59,81 @@ APP.config['SQLALCHEMY_DATABASE_URI'] = APP.config['SQL']
 DB = SQLAlchemy(APP)
 
 
+class Event(DB.Model):
+    """A timestamp annotated event."""
+
+    __tablename__ = 'events'
+    name = DB.Column(
+        DB.String(length=12),
+        primary_key=True,
+    )
+    timestamp = DB.Column(
+        DB.DateTime(),
+        nullable=True,
+        default=datetime.utcnow,
+    )
+
+    def __repr__(self):
+        return '{}({}, {})'.format(
+            self.__class__.__name__,
+            repr(self.name),
+            repr(self.timestamp),
+        )
+
+    @classmethod
+    def get_last_update(cls):
+        """Return that entry with name 'last_update' or create a new one."""
+        last_update = cls.query.get('last_update')
+        if not last_update:
+            last_update = Event(
+                name='last_update',
+                timestamp=datetime.fromtimestamp(0),
+            )
+            DB.session.add(last_update)
+            DB.session.commit()
+        return last_update
+
+    @classmethod
+    def last_update_is_outdated(cls):
+        """
+        Return True if the timestamp of the entry with name 'last_update' is older than 10 minutes.
+        """
+        evt = cls.get_last_update()
+        return (datetime.now() - evt.timestamp) > timedelta(minutes=10)
+
+    @classmethod
+    def touch_last_update(cls):
+        """Set the timestamp of 'last_update' event to now."""
+        evt = cls.get_last_update()
+        evt.timestamp = datetime.now()
+        DB.session.commit()
+
+
 class OpeningPeriod(DB.Model):
     """An entry for a time duration when the FabLab door was opened."""
 
     __tablename__ = 'openingperiod'
-    opened = DB.Column(DB.DateTime(timezone=True), primary_key=True, index=True, default=datetime.utcnow)
-    closed = DB.Column(DB.DateTime(timezone=True), nullable=True)
+    opened = DB.Column(
+        DB.DateTime(timezone=True),
+        primary_key=True,
+        index=True,
+        default=datetime.utcnow,
+    )
+    closed = DB.Column(
+        DB.DateTime(timezone=True),
+        nullable=True,
+    )
 
     def __init__(self, opened, closed=None):
         self.opened = opened
         self.closed = closed
 
     def __repr__(self):
-        return 'OpeningPeriod({}, {})'.format(self.opened, self.closed)
+        return '{}({}, {})'.format(
+            self.__class__.__name__,
+            repr(self.opened),
+            repr(self.closed),
+        )
 
     @property
     def opened_timestamp(self):
@@ -126,11 +188,12 @@ def spaceapi():
     feeds as dictionary breaks compatibility to 0.12.
     """
     latest_door_state = OpeningPeriod.get_latest_state()
-    is_open = latest_door_state is not None and latest_door_state.is_open
-    state_last_change = (
-        0 if not latest_door_state else latest_door_state.last_change_timestamp
+    outdated = Event.last_update_is_outdated() or not latest_door_state
+    is_open = not outdated and latest_door_state.is_open
+    state_last_change = Event.get_last_update().timestamp
+    state_message = 'doorstate is outdated' if outdated else (
+        'door is open' if is_open else 'door is closed'
     )
-    state_message = 'door is open' if is_open else 'door is closed'
 
     return jsonify({
         'api': '0.13',
@@ -207,7 +270,8 @@ def spaceapi():
 def get_doorstate():
     """Return the current door state."""
     latest_door_state = OpeningPeriod.get_latest_state()
-    if not latest_door_state:
+    outdated = Event.last_update_is_outdated() or not latest_door_state
+    if outdated:
         text = 'Keine aktuellen Informationen über den Türstatus vorhanden.'
     elif not latest_door_state.is_open and \
             latest_door_state.closed.date() != datetime.now(tzlocal()).date():
@@ -221,7 +285,7 @@ def get_doorstate():
             human_time_since(latest_door_state.opened)
         )
     return jsonify({
-        'state': latest_door_state.state.name if latest_door_state else 'unknown',
+        'state': 'unknown' if outdated else latest_door_state.state.name,
         'time': latest_door_state.opened_timestamp if latest_door_state else 0,
         'text': text,
     })
@@ -261,6 +325,7 @@ def update_doorstate():
         if latest_door_state:
             if latest_door_state.state == state:
                 # already opened/closed
+                Event.touch_last_update()
                 return jsonify({
                     'time': latest_door_state.last_change_timestamp,
                     'state': latest_door_state.state.name,
@@ -298,6 +363,7 @@ def update_doorstate():
     else:
         abort(500, 'This should not happen')
     DB.session.commit()
+    Event.touch_last_update()
     return jsonify({
         'time': latest_door_state.last_change_timestamp,
         'state': latest_door_state.state.name,
@@ -339,9 +405,11 @@ def get_doorstate_all():
 def get_doorstate_icon():
     """Redirect to the icon that describes the current door state."""
     latest_door_state = OpeningPeriod.get_latest_state()
-    return redirect(url_for('static', filename='logo_{}.png'.format(
-        (latest_door_state.state if latest_door_state else DoorState.closed).name
-    )))
+    outdated = Event.last_update_is_outdated() or not latest_door_state
+    logo_name = 'logo_transparentbg.png' if outdated else (
+        'logo_{}.png'.format(latest_door_state.state.name)
+    )
+    return redirect(url_for('static', filename=logo_name))
 
 
 @APP.errorhandler(400)
