@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """Small script to serve the SpaceAPI JSON API."""
 
 import argparse
 import hmac
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from time import sleep
 
+from dateutil.tz import tzlocal
 from flask import Flask, abort, jsonify, redirect, request, url_for
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import OperationalError
@@ -45,8 +47,6 @@ APP = Flask(
 APP.config['SQL'] = ARGS.sql
 APP.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-TZLOCAL = datetime.now(timezone.utc).astimezone().tzinfo
-
 # if environment variable SPACEAPI_$CONFIG is set, this value will be used
 for key, value in os.environ.items():
     if key.startswith('SPACEAPI_'):
@@ -74,13 +74,16 @@ class Event(DB.Model):
     )
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({self.name!r}, {self.timestamp!r})'
+        return '{}({}, {})'.format(
+            self.__class__.__name__,
+            repr(self.name),
+            repr(self.timestamp),
+        )
 
     @classmethod
     def get_last_update(cls):
         """Return that entry with name 'last_update' or create a new one."""
         last_update = cls.query.get('last_update')
-
         if not last_update:
             last_update = Event(
                 name='last_update',
@@ -88,7 +91,6 @@ class Event(DB.Model):
             )
             DB.session.add(last_update)
             DB.session.commit()
-
         return last_update
 
     @classmethod
@@ -97,7 +99,6 @@ class Event(DB.Model):
         Return True if the timestamp of the entry with name 'last_update' is older than 10 minutes.
         """
         evt = cls.get_last_update()
-
         return (datetime.now() - evt.timestamp) > timedelta(minutes=10)
 
     @classmethod
@@ -128,7 +129,11 @@ class OpeningPeriod(DB.Model):
         self.closed = closed
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({self.opened!r}, {self.closed!r})'
+        return '{}({}, {})'.format(
+            self.__class__.__name__,
+            repr(self.opened),
+            repr(self.closed),
+        )
 
     @property
     def opened_timestamp(self):
@@ -186,10 +191,8 @@ def spaceapi():
     outdated = Event.last_update_is_outdated() or not latest_door_state
     is_open = not outdated and latest_door_state.is_open
     state_last_change = Event.get_last_update().timestamp
-    state_message = (
-        'doorstate is outdated'
-        if outdated
-        else ('door is open' if is_open else 'door is closed')
+    state_message = 'doorstate is outdated' if outdated else (
+        'door is open' if is_open else 'door is closed'
     )
 
     return jsonify({
@@ -268,18 +271,19 @@ def get_doorstate():
     """Return the current door state."""
     latest_door_state = OpeningPeriod.get_latest_state()
     outdated = Event.last_update_is_outdated() or not latest_door_state
-
     if outdated:
         text = 'Keine aktuellen Informationen über den Türstatus vorhanden.'
-    elif (
-        not latest_door_state.is_open
-        and latest_door_state.closed.date() != datetime.now(TZLOCAL).date()
-    ):
+    elif not latest_door_state.is_open and \
+            latest_door_state.closed.date() != datetime.now(tzlocal()).date():
         text = 'Das FabLab war heute noch nicht geöffnet.'
     elif not latest_door_state.is_open:
-        text = f'Das FabLab war zuletzt vor {human_time_since(latest_door_state.closed)} geöffnet.'
+        text = 'Das FabLab war zuletzt vor {} geöffnet.'.format(
+            human_time_since(latest_door_state.closed)
+        )
     elif latest_door_state.is_open:
-        text = f'Die FabLab-Tür ist seit {human_time_since(latest_door_state.opened)} offen.'
+        text = 'Die FabLab-Tür ist seit {} offen.'.format(
+            human_time_since(latest_door_state.opened)
+        )
     return jsonify({
         'state': 'unknown' if outdated else latest_door_state.state.name,
         'time': latest_door_state.opened_timestamp if latest_door_state else 0,
@@ -299,126 +303,112 @@ def update_doorstate():
         for param in required_params:
             if not data.get(param, None):
                 raise ValueError(param, 'Parameter is missing')
-
         if not hmac.compare_digest(
-            calculate_hmac(data['time'], data['state'], ARGS.key), data['hmac']
+            calculate_hmac(data['time'], data['state'], ARGS.key),
+            data['hmac']
         ):
             raise ValueError('hmac', 'HMAC digest is wrong. Do you have the right key?')
-
         if not data['time'].isnumeric():
             raise ValueError('time', 'Time has to be an integer timestamp.')
-        time = datetime.fromtimestamp(int(data['time']), TZLOCAL)
-
-        if abs(time - datetime.now(TZLOCAL)).total_seconds() > 60:
+        time = datetime.fromtimestamp(int(data['time']), tzlocal())
+        if abs(time - datetime.now(tzlocal())).total_seconds() > 60:
             raise ValueError('time', 'Time is too far in the future or past. Use NTP!')
-
         if data['state'] not in DoorState.__members__:
-            door_states = ', '.join(DoorState.__members__.keys())
             raise ValueError(
                 'state',
-                f'State has to be one of {door_states}.'
+                'State has to be one of {}.'.format(
+                    ', '.join(DoorState.__members__.keys())
+                )
             )
         state = DoorState[data['state']]
         latest_door_state = OpeningPeriod.get_latest_state()
-
         if latest_door_state:
             if latest_door_state.state == state:
                 # already opened/closed
                 Event.touch_last_update()
-
-                return jsonify(
-                    {
-                        'time': latest_door_state.last_change_timestamp,
-                        'state': latest_door_state.state.name,
-                        '_text': f'door was already {latest_door_state.state.name} at {latest_door_state.last_change_timestamp}',
-                    }
-                )
+                return jsonify({
+                    'time': latest_door_state.last_change_timestamp,
+                    'state': latest_door_state.state.name,
+                    '_text': 'door was already {} at {}'.format(
+                        latest_door_state.state.name, latest_door_state.last_change_timestamp,
+                    ),
+                })
             elif latest_door_state.last_change_timestamp >= to_timestamp(time):
                 raise ValueError('time', 'New entry must be newer than latest entry.')
         elif state == DoorState.closed:
             # no entry: we assume the door was closed before -> already closed
-
-            return jsonify(
-                {
-                    'time': 0,
-                    'state': DoorState.closed.name,
-                    '_text': 'door was already closed.'
-                    " To be honest, we don't have any data yet but the first entry has to be 'opened'.",
-                }
-            )
+            return jsonify({
+                'time': 0,
+                'state': DoorState.closed.name,
+                '_text': "door was already closed."
+                " To be honest, we don't have any data yet but the first entry has to be 'opened'.",
+            })
     except ValueError as err:
         abort(400, {err.args[0]: err.args[1]})
 
     # update doorstate
-
     if latest_door_state and latest_door_state.is_open and state == DoorState.closed:
         latest_door_state.closed = time
         APP.logger.debug(
             'Closing door. Resulting entry: open from %(opened)i till %(closed)i',
-            latest_door_state.to_dict(),
+            latest_door_state.to_dict()
         )
-    elif (
-        not latest_door_state or not latest_door_state.is_open
-    ) and state == DoorState.opened:
+    elif (not latest_door_state or not latest_door_state.is_open) and state == DoorState.opened:
         latest_door_state = OpeningPeriod(opened=time)
         APP.logger.debug(
             'Opening door. New entry: open from %(opened)i till t.b.a.',
-            latest_door_state.to_dict(),
+            latest_door_state.to_dict()
         )
         DB.session.add(latest_door_state)
     else:
         abort(500, 'This should not happen')
     DB.session.commit()
     Event.touch_last_update()
+    return jsonify({
+        'time': latest_door_state.last_change_timestamp,
+        'state': latest_door_state.state.name,
+        '_text': 'door is now {} (time: {})'.format(
+            latest_door_state.state.name, latest_door_state.last_change_timestamp,
+        ),
+    })
 
-    return jsonify(
-        {
-            'time': latest_door_state.last_change_timestamp,
-            'state': latest_door_state.state.name,
-            '_text': f'door is now {latest_door_state.state.name} (time: {latest_door_state.last_change_timestamp})',
-        }
-    )
 
-
-@APP.route('/spaceapi/door/all/', methods=('GET',))
+@APP.route('/spaceapi/door/all/', methods=('GET', ))
 def get_doorstate_all():
     """Return the current door state. Filter by opened time using from and to."""
     try:
-        time_from = datetime.fromtimestamp(
-            int(
-                request.args.get(
-                    'from', (datetime.now(TZLOCAL) - timedelta(days=365)).timestamp()
-                )
-            ),
-            TZLOCAL,
-        )
-        time_to = datetime.fromtimestamp(
-            int(request.args.get('to', datetime.now(TZLOCAL).timestamp())), TZLOCAL
-        )
+        time_from = datetime.fromtimestamp(int(
+            request.args.get(
+                'from',
+                (datetime.now(tzlocal()) - timedelta(days=365)).timestamp(),
+            )
+        ), tzlocal())
+        time_to = datetime.fromtimestamp(int(
+            request.args.get(
+                'to',
+                datetime.now(tzlocal()).timestamp(),
+            )
+        ), tzlocal())
     except ValueError:
         abort(400, 'From and to have to be timestamps')
 
-    all_entries = (
-        OpeningPeriod.query.order_by(DB.asc(OpeningPeriod.opened))
-        .filter(OpeningPeriod.opened >= time_from, OpeningPeriod.opened <= time_to)
-        .limit(2000)
-        .all()
-    )
-
+    all_entries = OpeningPeriod.query.order_by(
+        DB.asc(OpeningPeriod.opened)
+    ).filter(
+        OpeningPeriod.opened >= time_from,
+        OpeningPeriod.opened <= time_to,
+    ).limit(2000).all()
     return jsonify([entry.to_dict() for entry in all_entries])
 
 
-@APP.route('/spaceapi/door/icon/', methods=('GET',))
+@APP.route('/spaceapi/door/icon/', methods=('GET', ))
 def get_doorstate_icon():
     """Redirect to the icon that describes the current door state."""
     latest_door_state = OpeningPeriod.get_latest_state()
     outdated = Event.last_update_is_outdated() or not latest_door_state
-    logo_name = (
-        'logo_transparentbg.png'
-        if outdated
-        else f'logo_{latest_door_state.state.name}.png'
+    logo_name = 'logo_transparentbg.png' if outdated else (
+        'logo_{}.png'.format(latest_door_state.state.name)
     )
-
     return redirect(url_for('static', filename=logo_name))
 
 
