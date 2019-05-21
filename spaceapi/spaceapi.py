@@ -190,7 +190,7 @@ def spaceapi():
     latest_door_state = OpeningPeriod.get_latest_state()
     outdated = Event.last_update_is_outdated() or not latest_door_state
     is_open = not outdated and latest_door_state.is_open
-    state_last_change = Event.get_last_update().timestamp
+    state_last_change = int(Event.get_last_update().timestamp.timestamp())
     state_message = 'doorstate is outdated' if outdated else (
         'door is open' if is_open else 'door is closed'
     )
