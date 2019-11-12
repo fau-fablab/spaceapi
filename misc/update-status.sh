@@ -5,17 +5,15 @@ cd "$(dirname "${0}")"
 
 KEY="$HOME/door.key"
 
-# crontab doesn't set $USER, so use $UID for checking
-# 1001 = tuerstatus
-DOORSTATE_USER="1001"
+DOORSTATE_USER="tuerstatus"
 
 # invert logic?
 # false: switch closed = door closed
 # true: switch open = door closed 
 DOORSTATE_INVERTED="true"
 
-if [ "${UID}" != "${DOORSTATE_USER}" ]; then
-	echo "[!] Please run this script as user ID ${DOORSTATE_USER}" 1>&2
+if [ "${USER}" != "${DOORSTATE_USER}" ]; then
+	echo "[!] Please run this script as user ${DOORSTATE_USER}" 1>&2
 	exit 1
 fi
 
