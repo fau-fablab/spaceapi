@@ -19,9 +19,9 @@ GPIO_IN_PIN="2"
 # true: switch open = door closed 
 DOORSTATE_INVERTED="true"
 
-# GPIO output pin. Set to 0 to disable (for example, if sensor is connected to 3V3)
+# GPIO output pin. Set to "" to disable (for example, if sensor is connected to 3V3)
 GPIO_OUT_PIN="27"
-# What value should be set on the output pin (ignored if $OUT_GPIO_PIN is 0)
+# What value should be set on the output pin (ignored if $OUT_GPIO_PIN is "")
 GPIO_OUT_VALUE="0"
 
 ###
@@ -64,6 +64,18 @@ function is_open() {
 	echo "${RETURN_ERROR}"
 	return 1
 }
+
+# set up GPIOs
+if [ ! -d /sys/class/gpio/gpio$GPIO_IN_PIN ]; then
+	echo "$GPIO_IN_PIN" > /sys/class/gpio/export
+	echo "in" > /sys/class/gpio/gpio$GPIO_IN_PIN/direction
+	if [ -n "$GPIO_OUT_PIN" ]; then
+		echo "$GPIO_OUT_PIN" > /sys/class/gpio/export
+		echo "out" > /sys/class/gpio/gpio$GPIO_OUT_PIN/direction
+		echo "$GPIO_OUT_VALUE" > /sys/class/gpio/gpio$GPIO_OUT_PIN/value
+	fi
+	echo "GPIOs set up"
+fi
 
 # retry ten times
 n=0
