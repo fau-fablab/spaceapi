@@ -12,7 +12,7 @@ KEY="$HOME/door.key"
 DOORSTATE_USER="tuerstatus"
 
 # GPIO input pin that reads from the sensor
-IN_GPIO_PIN="2"
+GPIO_IN_PIN="2"
 
 # invert logic?
 # false: switch closed = door closed
@@ -20,9 +20,9 @@ IN_GPIO_PIN="2"
 DOORSTATE_INVERTED="true"
 
 # GPIO output pin. Set to 0 to disable (for example, if sensor is connected to 3V3)
-OUT_GPIO_PIN="27"
+GPIO_OUT_PIN="27"
 # What value should be set on the output pin (ignored if $OUT_GPIO_PIN is 0)
-OUT_GPIO_STATE="0"
+GPIO_OUT_VALUE="0"
 
 ###
 # script
@@ -53,7 +53,7 @@ function update_status() {
 function is_open() {
 	sleep 1
 
-	if [ $(cat /sys/class/gpio/gpio$IN_GPIO_PIN/value) == 0 ]; then
+	if [ $(cat /sys/class/gpio/gpio$GPIO_IN_PIN/value) == 0 ]; then
 		echo "${RETURN_SWITCH_CLOSED}"
 		return 0
 	else
@@ -70,7 +70,8 @@ n=0
 for i in `seq 0 9`; do
 	n=$(($n + $(is_open)))
 done
-#  check if more than 7 times out of 10 the result is "opened"
+
+# check if more than 7 times out of 10 the result is "opened"
 if [ $n -gt 7 ]; then
 	update_status "opened"
 else
