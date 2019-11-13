@@ -115,12 +115,15 @@ Notes:
 
 ![example by week plot](./example_by_week_plot.png)
 
-## Installation on `ws01`
+## Installation on Raspberry Pi
 
-We have a serial read sensor to query the door state.
-It is located in our `ws01` Linux pc.
+We have a Raspberry Pi to query the door state using GPIO pins.
+It is located on top of the display shelf next to the door to the FSV room.
 It uses the script `misc/update-status.sh`.
-This script will be started every minute by the systemd timer in `misc/`.
+Connect 3V3 and GPIO17 to the sensor, and add a 10k resistor from GPIO17 to GND.
+While not required, adding a 1k resistor before GPIO17 is recommended.
+It acts as a failsafe, protecting the RPi in case of configuration problems.
+This script will be run every minute by the systemd timer in `misc/`.
 To install the timer run:
 
 ```sh
