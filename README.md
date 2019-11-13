@@ -120,7 +120,9 @@ Notes:
 We have a Raspberry Pi to query the door state using GPIO pins.
 It is located on top of the display shelf next to the door to the FSV room.
 It uses the script `misc/update-status.sh`.
-Connect GPIO2 and GPIO27 to the sensor, and add a 10k resistor from GPIO27 to GND.
+Connect 3V3 and GPIO17 to the sensor, and add a 10k resistor from GPIO17 to GND.
+While not required, adding a 1k resistor before GPIO17 is recommended.
+It acts as a failsafe, protecting the RPi in case of configuration problems.
 This script will be run every minute by the systemd timer in `misc/`.
 To install the timer run:
 

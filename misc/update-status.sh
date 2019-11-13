@@ -12,15 +12,15 @@ KEY="$HOME/door.key"
 DOORSTATE_USER="tuerstatus"
 
 # GPIO input pin that reads from the sensor
-GPIO_IN_PIN="2"
+GPIO_IN_PIN="17"
 
 # invert logic?
 # false: switch closed = door closed
 # true: switch open = door closed 
-DOORSTATE_INVERTED="true"
+DOORSTATE_INVERTED="false"
 
 # GPIO output pin. Set to "" to disable (for example, if sensor is connected to 3V3)
-GPIO_OUT_PIN="27"
+GPIO_OUT_PIN=""
 # What value should be set on the output pin (ignored if $OUT_GPIO_PIN is "")
 GPIO_OUT_VALUE="0"
 
