@@ -68,9 +68,12 @@ function is_open() {
 # set up GPIOs
 if [ ! -d /sys/class/gpio/gpio$GPIO_IN_PIN ]; then
 	echo "$GPIO_IN_PIN" > /sys/class/gpio/export
-	echo "in" > /sys/class/gpio/gpio$GPIO_IN_PIN/direction
 	if [ -n "$GPIO_OUT_PIN" ]; then
 		echo "$GPIO_OUT_PIN" > /sys/class/gpio/export
+	fi
+	sleep 1
+	echo "in" > /sys/class/gpio/gpio$GPIO_IN_PIN/direction
+	if [ -n "$GPIO_OUT_PIN" ]; then
 		echo "out" > /sys/class/gpio/gpio$GPIO_OUT_PIN/direction
 		echo "$GPIO_OUT_VALUE" > /sys/class/gpio/gpio$GPIO_OUT_PIN/value
 	fi
