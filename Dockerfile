@@ -1,4 +1,5 @@
-FROM fablab.fau.de/basislinux
+FROM fablab.fau.de/basislinux20
+# or ubuntu:focal
 
 RUN apt-get update && \
     apt-get -y install python3-pip libssl-dev && \
