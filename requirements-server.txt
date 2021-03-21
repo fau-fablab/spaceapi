@@ -3,3 +3,4 @@ Flask-SQLAlchemy<2.4.0
 PyMySQL<1.0.0
 python-dateutil<3.0.0
 argparse
+SQLAlchemy<1.4.0
