@@ -4,3 +4,11 @@ PyMySQL<1.0.0
 python-dateutil<3.0.0
 argparse
 SQLAlchemy<1.4.0
+
+# freeze all indirect dependencies:  (generated with 'pip freeze -l' and then filtering out everything that is listed above)
+click==8.0.3
+itsdangerous==2.0.1
+Jinja2==3.0.3
+MarkupSafe==2.0.1
+six==1.16.0
+Werkzeug==2.0.2
