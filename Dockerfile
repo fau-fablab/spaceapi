@@ -1,5 +1,5 @@
-FROM fablab.fau.de/basislinux20
-# or ubuntu:focal
+FROM ubuntu:22.04.1
+# (note: within the FAU FabLab installation, this image is aliased to the custom "basislinux")
 
 RUN apt-get update && \
     apt-get -y install python3-pip libssl-dev && \
