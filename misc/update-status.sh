@@ -11,18 +11,14 @@ KEY="$HOME/door.key"
 
 DOORSTATE_USER="tuerstatus"
 
-# GPIO input pin that reads from the sensor
+# GPIO chip and input pin that reads from the sensor (read with libgpiod's gpioget)
+GPIO_CHIP="gpiochip0"
 GPIO_IN_PIN="17"
 
 # invert logic?
 # false: switch closed = door closed
 # true: switch open = door closed 
-DOORSTATE_INVERTED="false"
-
-# GPIO output pin. Set to "" to disable (for example, if sensor is connected to 3V3)
-GPIO_OUT_PIN=""
-# What value should be set on the output pin (ignored if $OUT_GPIO_PIN is "")
-GPIO_OUT_VALUE="0"
+DOORSTATE_INVERTED="true"
 
 ###
 # script
@@ -53,7 +49,7 @@ function update_status() {
 function is_open() {
 	sleep 1
 
-	if [ $(cat /sys/class/gpio/gpio$GPIO_IN_PIN/value) == 0 ]; then
+	if [ "$(gpioget -c "${GPIO_CHIP}" --numeric "${GPIO_IN_PIN}")" == 0 ]; then
 		echo "${RETURN_SWITCH_CLOSED}"
 		return 0
 	else
@@ -64,21 +60,6 @@ function is_open() {
 	echo "${RETURN_ERROR}"
 	return 1
 }
-
-# set up GPIOs
-if [ ! -d /sys/class/gpio/gpio$GPIO_IN_PIN ]; then
-	echo "$GPIO_IN_PIN" > /sys/class/gpio/export
-	if [ -n "$GPIO_OUT_PIN" ]; then
-		echo "$GPIO_OUT_PIN" > /sys/class/gpio/export
-	fi
-	sleep 1
-	echo "in" > /sys/class/gpio/gpio$GPIO_IN_PIN/direction
-	if [ -n "$GPIO_OUT_PIN" ]; then
-		echo "out" > /sys/class/gpio/gpio$GPIO_OUT_PIN/direction
-		echo "$GPIO_OUT_VALUE" > /sys/class/gpio/gpio$GPIO_OUT_PIN/value
-	fi
-	echo "GPIOs set up"
-fi
 
 # retry ten times
 n=0

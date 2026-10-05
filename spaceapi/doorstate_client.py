@@ -8,8 +8,6 @@ from datetime import datetime, time, timedelta
 
 import requests
 from dateutil.tz import tzlocal
-from matplotlib import dates as mdates
-from matplotlib import pyplot
 
 from lib_doorstate import (add_debug_arg, add_key_arg, add_outfile_arg,
                            add_plot_type_arg, add_state_arg, add_time_arg,
@@ -61,6 +59,10 @@ def update_doorstate(args):
 
 def plot_by_hour(data, outfile):
     """Plot graph by hour."""
+    # imported lazily: only plotting needs matplotlib, not the door sensor
+    from matplotlib import dates as mdates
+    from matplotlib import pyplot
+
     fig = pyplot.figure()
     plot = fig.add_subplot(1, 1, 1)
 
@@ -96,6 +98,10 @@ def plot_by_hour(data, outfile):
 
 def plot_by_week(data, outfile):
     """Plot graph by week."""
+    # imported lazily: only plotting needs matplotlib, not the door sensor
+    from matplotlib import dates as mdates
+    from matplotlib import pyplot
+
     data_by_week = defaultdict(timedelta)  # Save open duration per week
     for entry in data:
         opened = datetime.fromtimestamp(entry['opened'], tzlocal())
