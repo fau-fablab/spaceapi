@@ -107,3 +107,7 @@ ENV/
 *.db
 
 *.swp
+
+# HMAC keys
+door.key
+!door.key.example

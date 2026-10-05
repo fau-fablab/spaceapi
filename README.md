@@ -49,6 +49,16 @@ SQL = "sqlite:///db.db"
 HOST = "192.168.1.1"
 ```
 
+### HMAC key
+
+The HMAC key is a shared secret: the server and every client that updates the door state
+(e.g. the door sensor Pi) must use the same key file.
+
+In production the key is stored on the server at `brain.fablab.fau.de:/mnt/secrets/spaceapi/key`.
+[brain-docker-config](https://github.com/fau-fablab/brain-docker-config) mounts that directory into the
+server container (`spaceapi.add_volume(secrets_prefix + "/spaceapi/", ...)` in `kastenwesen_config.py`),
+and the `Dockerfile` starts the server with `--key /mnt/secrets/spaceapi/key`.
+
 ## Client
 
 Can update entries of SpaceAPI server and plot opening hour graphs.
@@ -123,16 +133,29 @@ It uses the script `misc/update-status.sh`.
 Connect 3V3 and GPIO17 to the sensor, and add a 10k resistor from GPIO17 to GND.
 While not required, adding a 1k resistor before GPIO17 is recommended.
 It acts as a failsafe, protecting the RPi in case of configuration problems.
-This script will be run every minute by the systemd timer in `misc/`.
-To install the timer run:
+The script reads the pin with `gpioget` from libgpiod, so it also works on current
+Raspberry Pi OS (Debian 13 "trixie"), where the old sysfs GPIO interface is gone.
+`DOORSTATE_INVERTED` in the script is `true` for our sensor, where the pin reads 1 while the door is closed
+(check with `gpioget -c gpiochip0 --numeric 17`). Set it to `false` if your sensor reads 0 when closed.
+
+Setup: check out this repository in `/home/tuerstatus/spaceapi` and run the install script:
 
 ```sh
-cp misc/update_doorstate.{service,timer} /etc/systemd/system/
-systemctl daemon-reload
-systemctl start update_doorstate.timer
-systemctl enable update_doorstate.timer
-systemctl list-timers
+sudo git clone https://github.com/fau-fablab/spaceapi.git /home/tuerstatus/spaceapi
+sudo /home/tuerstatus/spaceapi/misc/install-sensor.sh
 ```
+
+It installs `gpiod`, `python3-requests` and `python3-dateutil` (the sensor does not need
+matplotlib), creates the user `tuerstatus` in the `gpio` group, adds `/home/tuerstatus/door.key`
+from `misc/door.key.example`, mounts a tmpfs on
+`/mnt/ramdisk` for the success marker `tuerstatus.success`, sets the NTP server to `ntp0.fau.de`
+(the Pi has no RTC) and enables the timer.
+
+Afterwards replace the placeholder in `/home/tuerstatus/door.key` with the shared secret of the
+server (see [HMAC key](#hmac-key)), e.g. by copying `brain.fablab.fau.de:/mnt/secrets/spaceapi/key`.
+Until then the server rejects the updates of the sensor.
+
+The script is run every minute by the systemd timer in `misc/`.
 
 ## Embed on Website
 
